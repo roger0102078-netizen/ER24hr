@@ -137,6 +137,7 @@ button.on{background:var(--ac);color:#04121c;border-color:var(--ac);font-weight:
 .ilead{color:#e6edf5;font-size:16px;margin:8px 0 12px;text-shadow:0 1px 6px #000}
 .irules{background:rgba(15,23,32,.78);backdrop-filter:blur(6px);border:1px solid #33465f;border-radius:12px;padding:8px 14px;text-align:left;margin:0 auto 14px}
 .irules summary{cursor:pointer;font-weight:700;color:var(--ac)}.irules p{color:#c3d1e0;font-size:13.5px;margin:8px 0}
+.iname{display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap;margin:2px 0 8px;color:#e6edf5}.iname input{background:rgba(15,23,32,.85);border:1px solid #33465f;border-radius:8px;padding:7px 10px;color:#fff;font:inherit;width:220px}.iname input:focus{outline:none;border-color:var(--ac)}.iname small{color:#9fb0c3;font-size:12px}
 .ihead{color:#fff;font-weight:700;font-size:15px;margin:6px 0 10px;text-shadow:0 1px 6px #000}
 .ilv{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
 .lvbtn{text-align:left;padding:10px 12px;border-radius:12px;background:rgba(15,23,32,.82);backdrop-filter:blur(6px);border:1px solid #33465f;transition:transform .15s,border-color .15s}
@@ -505,7 +506,7 @@ function render(){
  if(!S.started)return;
  const lobby=S.pts.filter(p=>p.loc==null).sort((a,b)=>(a.shown-a.wait/60)-(b.shown-b.wait/60)||b.wait-a.wait); // 檢傷級＋等待時間：每等 60 分鐘視同提高一級
  const sel=byId(S.sel);
- let h=`<div id="top"><div id="clock">${hh(S.t)}</div><span class="tag six" style="font-size:13px;padding:2px 8px">${S.lv.k}</span>
+ let h=`<div id="top"><div id="clock">${hh(S.t)}</div><span class="tag six" style="font-size:13px;padding:2px 8px">${S.lv.k}</span>${S.player?`<span class="tag" style="font-size:13px;padding:2px 8px">👨‍⚕️ ${esc(S.player)}</span>`:''}
   <div class="stat ${S.st<30?'low':''}"><small>體力 ${S.st.toFixed(0)}${S.st<30?' ⚠ 太累了':''}</small>${bar(S.st,S.st>=30?'var(--ok)':'var(--bad)')}</div>
   <div class="stat ${avgSat()<50?'low':''}"><small>病人滿意度 ${avgSat().toFixed(0)}${avgSat()<50?' ⚠ 民怨四起':''}</small>${bar(avgSat(),avgSat()>=50?'var(--ac)':'var(--bad)')}</div>
   <div class="stat"><small>救回 ✅ ${S.saved}　死亡 💀 ${S.died}/${FIRE[S.lv.k]}</small><small>跑掉 🚶 ${S.lwbs}　糾紛 ⚠ ${S.bad}</small></div>
@@ -624,6 +625,9 @@ function sceneHtml(){
  <g><rect x="196" y="420" width="6" height="140" fill="#455"/><circle cx="199" cy="418" r="46" fill="url(#lamp)"/><rect x="1006" y="420" width="6" height="140" fill="#455"/><circle cx="1009" cy="418" r="46" fill="url(#lamp)"/></g>
  <ellipse cx="600" cy="560" rx="520" ry="70" class="wash"/></svg>
  <div class="amb a1">${AMB}</div><div class="amb a2">${AMB}</div><div class="vig"></div></div>`;}
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function savedName(){try{return localStorage.getItem('er24hr_name')||''}catch(e){return ''}}
+const nm=()=>S.player?esc(S.player)+' 醫師':'醫師';
 function intro(){S.started=false;
  const stars=n=>'●'.repeat(n)+'○'.repeat(6-n);
  $app.innerHTML=`<div class="overlay intro">${sceneHtml()}<div class="ibox">
@@ -637,10 +641,13 @@ function intro(){S.started=false;
  <p>流程：送進診間 → 穩定生命徵象 → 檢查／治療／會診 → 收住院或回家。<br>亂開不必要的處置扣分；會診要等檢查結果；tPA 要先做 CT；體力低於 30 會開錯醫囑。</p>
  <p><b>結局：</b>分數達到通關分數就提早下班通關；死亡人數太多（PGY 6 人、R1／R2 5 人、R3 以上 4 人）就被開除；撐滿 24 小時沒達標則是平安下班，依分數評等。</p>
  <p><b>快捷鍵：</b>1-8 選床位、Enter 送進診間、空白鍵暫停／繼續、Shift+1/2/4 切速度、字母下醫囑（按鈕上有標示）。<br><b>醫囑佇列：</b>醫師忙碌時再下醫囑會自動排隊（最多 3 筆），做完自動接下一筆；Shift+字母或對按鈕按右鍵可插隊；前置條件不符的會被取消。</p></details>
+ <div class="iname"><label for="pname">👨‍⚕️ 你的名字</label><input id="pname" maxlength="8" autocomplete="off" placeholder="想被叫什麼？（可不填）" value="${esc(savedName())}"><small>會顯示在遊戲畫面與結局</small></div>
  <div class="ihead">選擇你的職級（難度）</div>
  <div class="ilv">${LEVELS.map((l,i)=>`<button data-do="start" data-a="${i}" class="lvbtn lv${i}"><div class="lvn"><b>${l.n}</b><span class="lvd">${stars(i+1)}</span></div><div class="lvt">${l.desc}</div></button>`).join('')}</div></div></div></div>`;}
-function start(i){const lv=LEVELS[i];S.lv=lv;S.mcis=lv.mcis.map(t=>t+(Math.random()*100-50|0));
- S.started=true;S.speed=1;log(`🕗 08:00 交班完成，開始值班（${lv.n}）。`);
+function start(i){const lv=LEVELS[i];S.lv=lv;
+ S.player=((document.getElementById('pname')||{}).value||'').trim().slice(0,8);
+ try{localStorage.setItem('er24hr_name',S.player)}catch(e){}S.mcis=lv.mcis.map(t=>t+(Math.random()*100-50|0));
+ S.started=true;S.speed=1;log(`🕗 08:00 交班完成，${nm()}開始值班（${lv.n}）。`);
  for(let k=0;k<lv.init;k++){let c;
   if(k<(lv.minT<=2?2:0)){const pool=CASES.filter(x=>!x.six&&!x.night&&x.t<=2);c=pool[Math.random()*pool.length|0];}
   else{do{c=pick(false)}while(c.six);}
@@ -665,7 +672,7 @@ function reviewHtml(){const rows=[...S.review];
  for(const p of S.pts){record(p,'⏳','下班時仍在急診，尚未處置完');rows.push(S.review.pop());}
  return `<div style="text-align:left;margin:10px 0"><b>逐位病人回顧（${rows.length} 位）</b><div style="max-height:260px;overflow:auto;margin-top:6px">${rows.map(r=>`<div style="padding:5px 0;border-bottom:1px solid #223046;font-size:13px"><b>${r.icon} ${r.name} ${r.age}歲・${r.dx}</b><div class="res">${r.res}${r.detail?'<br>'+r.detail:''}</div></div>`).join('')||'<div class="res">沒有處理任何病人</div>'}</div></div>`;}
 function end(){const r=S.lv.rate;const g=S.score>=700*r?['S','急診之神']:S.score>=450*r?['A','資深主治等級']:S.score>=250*r?['B','堪用的住院醫師']:S.score>=100*r?['C','還在適應中']:['D','建議先去睡一覺'];
- const R=S.result,title=R==='fired'?`🔥 你被開除了（${S.lv.n}）`:R==='clear'?`🏆 通關！提早 ${hh(S.t)} 下班（${S.lv.n}）`:`🌅 08:00 下班（${S.lv.n}）`;
+ const R=S.result,title=R==='fired'?`🔥 ${nm()}，你被開除了（${S.lv.n}）`:R==='clear'?`🏆 通關！${nm()}提早 ${hh(S.t)} 下班（${S.lv.n}）`:`🌅 ${nm()}，08:00 下班（${S.lv.n}）`;
  const sub=R==='fired'?`<p class="warn" style="font-size:16px">${S.died} 位病人死亡，院方決定請你離開。</p>`:R==='clear'?`<p style="color:var(--ok);font-size:16px">分數達到 ${goal()}，表現優異！</p>`:`<p class="res" style="font-size:15px">撐完 24 小時，但沒達到通關分數 ${goal()}。</p>`;
  $app.innerHTML+=`<div class="overlay"><div class="box"><h1>${title}</h1>${sub}<div class="big" style="color:var(--ac)">${R==='fired'?'F':g[0]}</div><p style="font-size:16px">${R==='fired'?'建議轉換跑道':g[1]}（${S.score} 分）</p>
  <p>救回 ${S.saved}　死亡 ${S.died}　跑掉 ${S.lwbs}　糾紛 ${S.bad}<br>六大急症 ${S.sixSeen} 人，黃金時間達標 ${S.sixHit} 次<br>過度醫療 ${S.over} 次　不必要住院 ${S.overAdm}　平均滿意度 ${avgSat().toFixed(0)}</p>
