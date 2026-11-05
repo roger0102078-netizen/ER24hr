@@ -80,6 +80,8 @@ button.on{background:var(--ac);color:#04121c;border-color:var(--ac);font-weight:
 #veil .vt{font-size:34px;font-weight:800;color:var(--t3)}#veil .vs{font-size:13px;color:var(--tx);margin:4px 0 10px}
 #veil button{pointer-events:auto;font-size:16px;padding:8px 18px;background:var(--t3);color:#111;font-weight:700}
 .dim{opacity:.55}
+.qline{font-size:12px;color:var(--mut);display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:2px}.qi{background:#0b121a;border-radius:6px;padding:1px 4px;white-space:nowrap}.qx{border:0;background:none;padding:0 3px;color:var(--bad);font-size:11px;cursor:pointer}
+.tag.qq{opacity:.5;filter:grayscale(1)}
 .tag.alert{background:#7a1f24;color:#ffd0d0;font-weight:700;animation:blink 1s infinite}
 .qbtn{width:100%;text-align:left;margin-top:6px;padding:10px 12px;font-size:14px}
 #bedbar{display:none}
@@ -240,7 +242,7 @@ let S, timer;
 
 function newGame(){S={t:0,speed:1,pts:[],nid:1,beds:Array(NB).fill(null),task:null,sel:null,st:100,log:[],
  saved:0,died:0,lwbs:0,bad:0,over:0,overAdm:0,sats:[],score:0,sixHit:0,sixMiss:0,sixSeen:0,
- mcis:[],lv:LEVELS[3],ended:false,started:false,review:[],recent:[],ghosts:[]};}
+ mcis:[],lv:LEVELS[3],ended:false,started:false,review:[],recent:[],ghosts:[],queue:[]};}
 const byId=id=>S.pts.find(p=>p.id===id);
 const has=(p,a)=>p.done.includes(a)||p.pend.some(x=>x.a===a);
 const allDone=p=>p.cs.need.every(n=>p.done.includes(n));
@@ -281,7 +283,7 @@ function record(p,icon,res){const need=p.cs.need,miss=need.filter(n=>!p.done.inc
  if(miss.length)d.push('缺少：'+miss.join('、'));if(extra.length)d.push('多餘處置：'+extra.join('、'));
  if(p.goldRes==='hit')d.push('黃金時間達標');if(p.goldRes==='miss')d.push(`錯過黃金時間（${p.cs.gold.a}）`);
  S.review.push({icon,name:p.name,age:p.age,dx:p.cs.dx,res,detail:d.join('；')});}
-function remove(p,sat){const f=p.fate||['❔','離開'];record(p,f[0],f[1]);
+function remove(p,sat){const f=p.fate||['❔','離開'];record(p,f[0],f[1]);S.queue=(S.queue||[]).filter(x=>x.pid!==p.id);
  if(f[0]==='💀'){const bi=S.beds.indexOf(p.id);if(bi>=0)(S.ghosts=S.ghosts||[]).push({bed:bi,name:p.name,age:p.age,dx:p.cs.dx,until:S.t+8});}const i=S.beds.indexOf(p.id);if(i>=0)S.beds[i]=null;S.pts=S.pts.filter(x=>x!==p);S.sats.push(Math.max(0,sat??p.sat));if(S.sel===p.id)S.sel=null;}
 function missGold(p){if(p.cs.gold&&!p.goldDone){p.goldDone=true;p.goldRes='miss';S.sixMiss++;}}
 
@@ -295,6 +297,7 @@ function tick(){
  if(S.mcis.length&&S.t>=S.mcis[0]){S.mcis.shift();mci();}
  S.st=Math.max(0,S.st-(0.03+(S.task?0.1:0))*S.lv.sd);
  if(S.task&&--S.task.left<=0)finish();
+ nextQueued();
  for(const p of S.pts.slice()){
   p.pend=p.pend.filter(x=>{if(--x.left>0)return true;
    p.done.push(x.a);const A=ACT[x.a],need=p.cs.need.includes(x.a);
@@ -353,13 +356,29 @@ function dispo(p,kind){
 }
 
 /* ---- actions ---- */
-function doAct(a){
+// 醫囑佇列：醫師忙碌時醫囑排隊（上限 3 筆），做完自動接下一筆；front=true 為插隊（Shift+熱鍵／右鍵）
+const QMAX=3;
+function queued(p,a){return S.queue.some(x=>x.pid===p.id&&x.a===a);}
+function prereq(p,a){const A=ACT[a],need=p.cs.need,req=A.c?need.filter(n=>!ACT[n].c):A.req;return !req||req.every(n=>p.done.includes(n));}
+function launch(p,a){if(a==='腎上腺素')return openQuiz(p.id,a);startAct(p,a);}
+function doAct(a,front){
  const p=byId(S.sel);if(!p||p.loc==null)return;
- if(S.task)return busyToast();
  if(a==='穩定生命徵象'?p.stab:has(p,a))return toast('已經開過了');
- if(a==='腎上腺素')return openQuiz(p.id,a);
- startAct(p,a);
+ if(S.task&&S.task.pid===p.id&&S.task.a===a)return toast('已經在做了');
+ if(queued(p,a))return toast('已在佇列中');
+ if(S.task||S.quiz){
+  if(S.queue.length>=QMAX)return toast('佇列已滿（最多 3 筆）');
+  const it={pid:p.id,a,addedAt:S.t};if(front)S.queue.unshift(it);else S.queue.push(it);
+  return toast(`${front?'⏫ 插隊':'已排入佇列'}（${S.queue.length}/${QMAX}）：${a}`+(S.speed?'':'——遊戲暫停中，繼續後才會執行'));}
+ launch(p,a);
 }
+function nextQueued(){
+ while(!S.task&&!S.quiz&&S.queue.length){const it=S.queue.shift(),p=byId(it.pid);
+  if(!p||p.loc==null)continue;
+  if(it.a==='穩定生命徵象'?p.stab:has(p,it.a))continue;
+  if(!prereq(p,it.a)){log(`🚫 ${p.name} 的「${it.a}」因為前置未完成而被取消`,'y');continue;}
+  launch(p,it.a);}}
+const qLabel=x=>{const q=byId(x.pid);return `${ACT[x.a].i}${x.a}（${q?q.name:'?'}）`;};
 function startAct(p,a){S.task={pid:p.id,a,left:ACT[a].d,total:ACT[a].d};queuedNote(a);}
 // 腎上腺素小測驗：劑量與途徑，答對加分、答錯扣分並傷害病人
 function openQuiz(pid,a){const opts=[['肌肉注射 0.3–0.5 mg（大腿外側）',1],['靜脈推注 1 mg 快速給藥',0],['皮下注射 0.1 mg',0],['口服 10 mg 錠劑',0]].sort(()=>Math.random()-.5);
@@ -474,12 +493,12 @@ function render(){
   <div class="stat"><small>救回 ✅ ${S.saved}　死亡 💀 ${S.died}/${FIRE[S.lv.k]}</small><small>跑掉 🚶 ${S.lwbs}　糾紛 ⚠ ${S.bad}</small></div>
   <div class="stat"><small>六大急症黃金時間</small><b>🏅 ${S.sixHit} / ${S.sixHit+S.sixMiss}</b></div>
   <div class="stat"><small>分數（通關 ${goal()}）</small><b>${S.score}</b></div>
-  <div class="stat" style="flex:1;min-width:180px"><small>醫師目前</small><b>${taskText()}</b></div>
+  <div class="stat" style="flex:1;min-width:220px"><small>醫師目前</small><b>${taskText()}</b>${S.queue.length?`<div class="qline">下一個：${S.queue.map((x,i)=>`<span class="qi">${qLabel(x)}<button class="qx" data-do="qdel" data-a="${i}" title="取消">✕</button></span>`).join('')}</div>`:''}</div>
   <div>${[[0,'⏸ 暫停'],[1,'▶ 1×'],[2,'2×'],[4,'4×']].map(([v,t])=>`<button data-do="speed" data-a="${v}" class="${S.speed===v?'on':''}">${t}</button>`).join(' ')}</div>
   <div><button data-do="rest" data-a="咖啡" ${S.task?'class="dim"':''}>☕ 咖啡 +12</button> <button data-do="rest" data-a="小睡" ${S.task?'class="dim"':''}>😴 小睡20分 +35</button></div></div>`;
  if(S.speed===0&&!(S.pop&&S.pop.length))h+=`<div id="veil"><div><div class="vt">⏸ 已暫停</div><div class="vs">${S.autoPaused?'分頁離開，已自動暫停。':''}可以先想好、先下醫囑，繼續後才會執行</div><button data-do="resume">▶ 繼續（空白鍵）</button></div></div>`;
  h+=`<div id="bedbar">${S.beds.map((id,i)=>{const q=id&&byId(id);return q?`<div class="chip ${q.id===S.sel?'sel':''} ${q.hp<35?'crit':''}" data-do="sel" data-a="${q.id}"><span class="tri t${q.shown}">${q.shown}</span><div><b>${i+1}·${q.name}</b>${bar(q.hp,hpc(q.hp))}</div></div>`:`<div class="chip empty">${i+1}·空</div>`}).join('')}</div>
- <div id="main"><div class="panel plobby"><h3>候診區（${lobby.length}）</h3><div class="res" style="margin-bottom:6px">快捷鍵：1-8 選床　Enter 進診間　空白 暫停　Shift+1/2/4 速度　字母下醫囑</div><div class="legend">${[1,2,3,4,5].map(i=>`<span class="t${i}">${i} ${TRI[i]}</span>`).join('')}</div>`;
+ <div id="main"><div class="panel plobby"><h3>候診區（${lobby.length}）</h3><div class="res" style="margin-bottom:6px">快捷鍵：1-8 選床　Enter 進診間　空白 暫停　Shift+1/2/4 速度　字母下醫囑（忙碌時自動排隊，最多 3 筆；Shift+字母或右鍵＝插隊）</div><div class="legend">${[1,2,3,4,5].map(i=>`<span class="t${i}">${i} ${TRI[i]}</span>`).join('')}</div>`;
  h+=lobby.map(p=>`<div class="pt ${p.id===S.sel?'sel':''} ${p.hp<35?'crit':isLate(p)?'late':''}" title="${p.name} ${p.age}歲：${p.cs.c}" data-do="sel" data-a="${p.id}">${figure(p,72)}<div class="tri t${p.shown}">${p.shown}</div><div class="m"><b>${p.name} ${p.age}歲</b><span>${p.cs.c}</span><div class="tags" style="margin:2px 0">${catTag(p)}${vitAlert(p)?'<span class="tag alert">⚠ 生命徵象異常</span>':''}${p.known?`<span class="tag">${SEV[p.sev-1]}</span>`:''}</div>${bar(p.hp,hpc(p.hp))}</div><small>${p.wait}分${isLate(p)?'<br>⚠久候':''}</small></div>`).join('')||'<div class="res">沒有人在等 🎉</div>';
  h+=`</div><div><div class="panel pbeds"><h3>急診診間（${S.beds.filter(x=>x).length}/${NB}）</h3><div id="beds">`;
  h+=S.beds.map((id,i)=>{const p=id&&byId(id);if(!p){const g=(S.ghosts||[]).find(x=>x.bed===i&&S.t<x.until);
@@ -487,7 +506,7 @@ function render(){
    return `<div class="bed empty"><div class="bscene dimmed"><div class="bcur"></div><div class="bmat"></div><div class="mmon off"><svg viewBox="0 0 56 14"><path d="${MINI.flat}" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>OFF</div></div>空床 ${i+1}</div>`;}
   const busy=S.task&&S.task.pid===p.id;
   return `<div class="bed ${p.id===S.sel?'sel':''} ${busy?'busy':''} ${p.hp<35?'crit':''}" data-do="sel" data-a="${p.id}"><div class="bname"><div class="tri t${p.shown}">${p.shown}</div><b>${p.name}</b><small>${i+1}</small></div><div class="bscene"><div class="bcur"></div><div class="bmat"></div>${miniMon(p)}<div class="bfig">${figure(p,100)}</div>${doingHtml(p)}</div><div class="res">${p.cs.c}</div>${bar(p.hp,hpc(p.hp))}
-  <div class="tags">${catTag(p)}${vitAlert(p)?'<span class="tag alert">⚠ 生命徵象異常</span>':''}${p.known?`<span class="tag">${SEV[p.sev-1]}</span>`:''}${p.stab?'<span class="tag">🫁穩定</span>':''}${p.pend.length?`<span class="tag">⏳等結果 ${p.pend.length}</span>`:''}${allDone(p)?'<span class="tag" style="color:var(--ok)">可處置</span>':''}</div></div>`}).join('');
+  <div class="tags">${catTag(p)}${vitAlert(p)?'<span class="tag alert">⚠ 生命徵象異常</span>':''}${p.known?`<span class="tag">${SEV[p.sev-1]}</span>`:''}${p.stab?'<span class="tag">🫁穩定</span>':''}${p.pend.length?`<span class="tag">⏳等結果 ${p.pend.length}</span>`:''}${S.queue.filter(x=>x.pid===p.id).map(x=>`<span class="tag qq" title="排隊中：${x.a}">⏭${ACT[x.a].i}</span>`).join('')}${allDone(p)?'<span class="tag" style="color:var(--ok)">可處置</span>':''}</div></div>`}).join('');
  h+=`</div></div><div class="panel plog" style="margin-top:12px"><h3>事件紀錄</h3><div id="log">${S.log.map(l=>`<div class="${l.cls}">[${hh(l.t)}] ${l.msg}</div>`).join('')}</div></div></div>`;
  h+=`<div class="panel dock">`;
  if(!sel)h+='<h3>病人處置</h3><div class="res">點選候診區或診間的病人（或按數字鍵 1-8 選床位）</div>';
@@ -539,9 +558,10 @@ function patch(a,b){const ac=a.childNodes,bc=b.childNodes;
 const $app=document.getElementById('app');
 document.addEventListener('pointerdown',e=>{
  const b=e.target.closest('[data-do]');if(!b||b.disabled)return;const a=b.dataset.a;
- ({sel:()=>S.sel=+a,bed:toBed,act:()=>doAct(a),dispo:()=>doDispo(a),rest:()=>doRest(a),reassess:doReassess,more:()=>S.more=!S.more,popok:popupOk,quiz:()=>quizAnswer(+a),resume:()=>{S.autoPaused=false;S.speed=S.resume||1},speed:()=>{if(S.speed)S.resume=S.speed;S.autoPaused=false;S.speed=+a},start:()=>start(+a),again:()=>{newGame();intro()}})[b.dataset.do]?.();
+ ({sel:()=>S.sel=+a,bed:toBed,act:()=>doAct(a),dispo:()=>doDispo(a),rest:()=>doRest(a),reassess:doReassess,more:()=>S.more=!S.more,popok:popupOk,qdel:()=>{S.queue.splice(+a,1)},quiz:()=>quizAnswer(+a),resume:()=>{S.autoPaused=false;S.speed=S.resume||1},speed:()=>{if(S.speed)S.resume=S.speed;S.autoPaused=false;S.speed=+a},start:()=>start(+a),again:()=>{newGame();intro()}})[b.dataset.do]?.();
  render();
 });
+document.addEventListener('contextmenu',e=>{const b=e.target.closest('[data-do=act]');if(!b||!S.started)return;e.preventDefault();if(b.disabled)return;doAct(b.dataset.a,true);render();});
 document.addEventListener('keydown',e=>{
  if(!S.started||S.ended||e.ctrlKey||e.metaKey||e.altKey)return;
  const k=e.key;
@@ -551,7 +571,7 @@ document.addEventListener('keydown',e=>{
  else if(e.shiftKey&&/^Digit[124]$/.test(e.code)){S.autoPaused=false;S.speed=+e.code.slice(5);}
  else if(/^[1-8]$/.test(k)){const id=S.beds[+k-1];if(id)S.sel=id;}
  else if(k==='Enter'){e.preventDefault();toBed();}
- else{const a=Object.keys(HOT).find(x=>HOT[x]===k.toUpperCase());if(!a)return;doAct(a);}
+ else{const a=Object.keys(HOT).find(x=>HOT[x]===k.toUpperCase());if(!a)return;doAct(a,e.shiftKey);}
  render();});
 document.addEventListener('visibilitychange',()=>{ // 離開分頁自動暫停，避免遊戲在背景自己跑
  if(document.hidden&&S.started&&!S.ended&&S.speed>0){S.resume=S.speed;S.speed=0;S.autoPaused=true;render();}});
@@ -598,7 +618,7 @@ function intro(){S.started=false;
  <p><b>六大急症</b>（OHCA、急性冠心症、腦中風、敗血症、重大外傷、呼吸衰竭）由救護車直送，有黃金時間：例如 ACS 10 分鐘內 ECG、腦中風 25 分鐘內 CT、敗血症 1 小時內抗生素、OHCA 5 分鐘內 CPR。下單即算達標，達標加分。</p>
  <p>流程：送進診間 → 穩定生命徵象 → 檢查／治療／會診 → 收住院或回家。<br>亂開不必要的處置扣分；會診要等檢查結果；tPA 要先做 CT；體力低於 30 會開錯醫囑。</p>
  <p><b>結局：</b>分數達到通關分數就提早下班通關；死亡人數太多（PGY 6 人、R1／R2 5 人、R3 以上 4 人）就被開除；撐滿 24 小時沒達標則是平安下班，依分數評等。</p>
- <p><b>快捷鍵：</b>1-8 選床位、Enter 送進診間、空白鍵暫停／繼續、Shift+1/2/4 切速度、字母下醫囑（按鈕上有標示）。</p></details>
+ <p><b>快捷鍵：</b>1-8 選床位、Enter 送進診間、空白鍵暫停／繼續、Shift+1/2/4 切速度、字母下醫囑（按鈕上有標示）。<br><b>醫囑佇列：</b>醫師忙碌時再下醫囑會自動排隊（最多 3 筆），做完自動接下一筆；Shift+字母或對按鈕按右鍵可插隊；前置條件不符的會被取消。</p></details>
  <div class="ihead">選擇你的職級（難度）</div>
  <div class="ilv">${LEVELS.map((l,i)=>`<button data-do="start" data-a="${i}" class="lvbtn lv${i}"><div class="lvn"><b>${l.n}</b><span class="lvd">${stars(i+1)}</span></div><div class="lvt">${l.desc}</div></button>`).join('')}</div></div></div></div>`;}
 function start(i){const lv=LEVELS[i];S.lv=lv;S.mcis=lv.mcis.map(t=>t+(Math.random()*100-50|0));
