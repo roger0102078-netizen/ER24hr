@@ -75,11 +75,19 @@ button:disabled{opacity:.4;cursor:not-allowed}
 @keyframes critbox{50%{border-color:var(--bad);box-shadow:0 0 0 2px var(--bad) inset}}
 .crit{border-color:var(--bad);animation:critbox .8s infinite}
 button.on{background:var(--ac);color:#04121c;border-color:var(--ac);font-weight:700}
-#veil{position:fixed;inset:0;background:rgba(10,16,24,.12);display:grid;place-items:center;z-index:6;pointer-events:none;text-align:center}
-#veil>div{background:rgba(25,36,51,.88);border:2px solid var(--t3);border-radius:16px;padding:16px 28px}
-#veil .vt{font-size:34px;font-weight:800;color:var(--t3)}#veil .vs{font-size:13px;color:var(--tx);margin:4px 0 10px}
-#veil button{pointer-events:auto;font-size:16px;padding:8px 18px;background:var(--t3);color:#111;font-weight:700}
 .dim{opacity:.55}
+#veil{position:fixed;top:calc(var(--toph,64px) + 6px);left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;align-items:center;max-width:94vw;background:rgba(25,36,51,.96);border:2px solid var(--t3);border-radius:12px;padding:6px 14px;z-index:6;box-shadow:0 4px 16px #0007}
+#veil .vt{font-size:18px;font-weight:800;color:var(--t3);white-space:nowrap}#veil .vs{font-size:12px;color:var(--tx)}
+#veil button{font-size:14px;padding:5px 12px;background:var(--t3);color:#111;font-weight:700;white-space:nowrap}
+.idlebar.wait{background:#1f2a38;border-color:#3b4f68;color:#9fb0c3;animation:none;cursor:default;font-weight:400}
+/* 中寬度：兩欄（左：診間＋候診區＋紀錄，右：處置面板固定） */
+@media(min-width:700px) and (max-width:1000px){
+ #main{grid-template-columns:minmax(0,1fr) 380px;grid-template-areas:"beds dock" "lobby dock" "log dock";align-items:start}
+ .pbeds{grid-area:beds;order:0}.plobby{grid-area:lobby;order:0}.plog{grid-area:log;order:0;margin-top:0!important}
+ .dock{grid-area:dock;order:0;position:sticky;top:calc(var(--toph,64px) + 62px);max-height:calc(100vh - var(--toph,64px) - 76px)}
+}
+/* 寬螢幕：候診區固定在左側並可獨立捲動 */
+@media(min-width:1001px){.plobby{position:sticky;top:calc(var(--toph,64px) + 8px);max-height:calc(100vh - var(--toph,64px) - 20px);overflow:auto;align-self:start}}
 .idle{color:#ff9f43;animation:blink .9s infinite}
 .idlebar{flex:none;background:#5a3a12;border:1px solid #ff9f43;color:#ffd9a8;font-weight:700;border-radius:8px;padding:7px 10px;margin-bottom:8px;cursor:pointer;animation:idlepulse 1.6s ease-in-out infinite}
 @keyframes idlepulse{50%{background:#7a4c14}}
@@ -387,14 +395,17 @@ function nextQueued(){
   if(!prereq(p,it.a)){log(`🚫 ${p.name} 的「${it.a}」因為前置未完成而被取消`,'y');continue;}
   launch(p,it.a);}}
 // 閒置警示：醫師無處置、佇列空、診間有人必要處置未完成（或診間沒人但候診有人）持續 10 遊戲分鐘就警示，之後每 30 分鐘提醒
-const needsAction=q=>q.loc!=null&&q.cs.need.some(n=>!q.done.includes(n)&&!q.pend.some(x=>x.a===n));
+const needsAction=q=>q.loc!=null&&q.cs.need.some(n=>!q.done.includes(n)&&!q.pend.some(x=>x.a===n)&&prereq(q,n)); // 真的有事可做（等結果、被前置擋住的不算）
+const waitingOn=()=>S.pts.filter(q=>q.loc!=null&&!allDone(q)&&!needsAction(q)).length;
 const unattended=q=>needsAction(q)&&!(S.task&&S.task.pid===q.id)&&!S.queue.some(x=>x.pid===q.id);
 const ydot=q=>unattended(q)?'<span class="ydot" title="尚有必要處置未完成，需要處理"></span>':'';
 const idleNow=()=>!S.task&&!S.quiz&&!S.queue.length&&(S.idle||0)>=10;
 function idleTargets(){const needy=S.pts.filter(needsAction).sort((a,b)=>a.tt-b.tt||a.hp-b.hp);
  const lob=S.pts.filter(q=>q.loc==null).sort((a,b)=>(a.shown-a.wait/60)-(b.shown-b.wait/60));return {needy,lob};}
 function gotoIdle(){const {needy,lob}=idleTargets();const t=needy[0]||lob[0];if(t)S.sel=t.id;}
-function idleBanner(){if(!idleNow())return '';const {needy,lob}=idleTargets();
+function idleBanner(){
+ if(!S.task&&!S.quiz&&!S.queue.length&&!idleNow()){const w=waitingOn();if(w>0&&!S.pts.some(needsAction))return `<div class="idlebar wait">⏳ 等待檢查結果／會診中（${w} 床），暫時沒有需要下的醫囑</div>`;}
+ if(!idleNow())return '';const {needy,lob}=idleTargets();
  const txt=needy.length?`⚠ 醫師閒置中，${needy.length} 床病人尚未完成必要處置，點擊跳到最緊急的那位`:`⚠ 醫師閒置中：診間有空床，候診區有 ${lob.length} 人在等，點擊選最優先的那位`;
  return `<div class="idlebar" data-do="gotoidle">${txt}</div>`;}
 const qLabel=x=>{const q=byId(x.pid);return `${ACT[x.a].i}${x.a}（${q?q.name:'?'}）`;};
@@ -515,7 +526,8 @@ function render(){
   <div class="stat" style="flex:1;min-width:220px"><small>醫師目前</small><b class="${idleNow()?'idle':''}">${taskText()}</b>${S.queue.length?`<div class="qline">下一個：${S.queue.map((x,i)=>`<span class="qi">${qLabel(x)}<button class="qx" data-do="qdel" data-a="${i}" title="取消">✕</button></span>`).join('')}</div>`:''}</div>
   <div>${[[0,'⏸ 暫停'],[1,'▶ 1×'],[2,'2×'],[4,'4×']].map(([v,t])=>`<button data-do="speed" data-a="${v}" class="${S.speed===v?'on':''}">${t}</button>`).join(' ')}</div>
   <div><button data-do="rest" data-a="咖啡" ${S.task?'class="dim"':''}>☕ 咖啡 +12</button> <button data-do="rest" data-a="小睡" ${S.task?'class="dim"':''}>😴 小睡20分 +35</button></div></div>`;
- if(S.speed===0&&!(S.pop&&S.pop.length))h+=`<div id="veil"><div><div class="vt">⏸ 已暫停</div><div class="vs">${S.autoPaused?'分頁離開，已自動暫停。':''}可以先想好、先下醫囑，繼續後才會執行</div><button data-do="resume">▶ 繼續（空白鍵）</button></div></div>`;
+ if(S.cd>0&&S.speed===0&&!(S.pop&&S.pop.length))h+=`<div id="veil"><span class="vt">⏳ ${S.cd} 秒後開始值班</span><span class="vs">先看一下候診區和診間</span><button data-do="resume">現在開始</button></div>`;
+ else if(S.speed===0&&!(S.pop&&S.pop.length))h+=`<div id="veil"><span class="vt">⏸ 已暫停</span><span class="vs">${S.autoPaused?'分頁離開，已自動暫停・':''}仍可下醫囑，繼續後才會執行</span><button data-do="resume">▶ 繼續（空白鍵）</button></div>`;
  h+=`<div id="bedbar">${S.beds.map((id,i)=>{const q=id&&byId(id);return q?`<div class="chip ${q.id===S.sel?'sel':''} ${q.hp<35?'crit':''}" data-do="sel" data-a="${q.id}"><span class="tri t${q.shown}">${q.shown}</span><div><b>${i+1}·${q.name} ${ydot(q)}</b>${bar(q.hp,hpc(q.hp))}</div></div>`:`<div class="chip empty">${i+1}·空</div>`}).join('')}</div>
  <div id="main"><div class="panel plobby"><h3>候診區（${lobby.length}）</h3><div class="res" style="margin-bottom:6px">快捷鍵：1-8 選床　Enter 進診間　空白 暫停　Shift+1/2/4 速度　字母下醫囑（忙碌時自動排隊，最多 3 筆；Shift+字母或右鍵＝插隊）</div><div class="legend">${[1,2,3,4,5].map(i=>`<span class="t${i}">${i} ${TRI[i]}</span>`).join('')}</div>`;
  h+=lobby.map(p=>`<div class="pt ${p.id===S.sel?'sel':''} ${p.hp<35?'crit':isLate(p)?'late':''}" title="${p.name} ${p.age}歲：${p.cs.c}" data-do="sel" data-a="${p.id}">${figure(p,72)}<div class="tri t${p.shown}">${p.shown}</div><div class="m"><b>${p.name} ${p.age}歲</b><span>${p.cs.c}</span><div class="tags" style="margin:2px 0">${catTag(p)}${vitAlert(p)?'<span class="tag alert">⚠ 生命徵象異常</span>':''}${p.known?`<span class="tag">${SEV[p.sev-1]}</span>`:''}</div>${bar(p.hp,hpc(p.hp))}</div><small>${p.wait}分${isLate(p)?'<br>⚠久候':''}</small></div>`).join('')||'<div class="res">沒有人在等 🎉</div>';
@@ -577,7 +589,7 @@ function patch(a,b){const ac=a.childNodes,bc=b.childNodes;
 const $app=document.getElementById('app');
 document.addEventListener('pointerdown',e=>{
  const b=e.target.closest('[data-do]');if(!b||b.disabled)return;const a=b.dataset.a;
- ({sel:()=>S.sel=+a,bed:toBed,act:()=>doAct(a),dispo:()=>doDispo(a),rest:()=>doRest(a),reassess:doReassess,more:()=>S.more=!S.more,popok:popupOk,gotoidle:()=>gotoIdle(),qdel:()=>{S.queue.splice(+a,1)},quiz:()=>quizAnswer(+a),resume:()=>{S.autoPaused=false;S.speed=S.resume||1},speed:()=>{if(S.speed)S.resume=S.speed;S.autoPaused=false;S.speed=+a},start:()=>start(+a),again:()=>{newGame();intro()}})[b.dataset.do]?.();
+ ({sel:()=>S.sel=+a,bed:toBed,act:()=>doAct(a),dispo:()=>doDispo(a),rest:()=>doRest(a),reassess:doReassess,more:()=>S.more=!S.more,popok:popupOk,gotoidle:()=>gotoIdle(),qdel:()=>{S.queue.splice(+a,1)},quiz:()=>quizAnswer(+a),resume:()=>{S.autoPaused=false;S.cd=0;S.speed=S.resume||1},speed:()=>{if(S.speed)S.resume=S.speed;S.autoPaused=false;S.speed=+a},start:()=>start(+a),again:()=>{newGame();intro()}})[b.dataset.do]?.();
  render();
 });
 document.addEventListener('contextmenu',e=>{const b=e.target.closest('[data-do=act]');if(!b||!S.started)return;e.preventDefault();if(b.disabled)return;doAct(b.dataset.a,true);render();});
@@ -595,8 +607,9 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('visibilitychange',()=>{ // 離開分頁自動暫停，避免遊戲在背景自己跑
  if(document.hidden&&S.started&&!S.ended&&S.speed>0){S.resume=S.speed;S.speed=0;S.autoPaused=true;render();}});
 function loop(){
+ if(S.cd&&S.speed>0)S.cd=0;
  if(S.started&&!S.ended&&S.speed>0){tick();render();if(S.ended)end();}
- timer=setTimeout(loop,S.speed>0?250/S.speed:100);
+ timer=setTimeout(loop,S.speed>0?1000/S.speed:100);
 }
 const AMB=`<svg viewBox="0 0 230 110" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="beam" x1="0" x2="1"><stop offset="0" stop-color="#fff6b0" stop-opacity=".85"/><stop offset="1" stop-color="#fff6b0" stop-opacity="0"/></linearGradient></defs>
 <polygon points="212,66 330,40 330,96" fill="url(#beam)" opacity=".55"/>
@@ -640,6 +653,7 @@ function intro(){S.started=false;
  <p><b>六大急症</b>（OHCA、急性冠心症、腦中風、敗血症、重大外傷、呼吸衰竭）由救護車直送，有黃金時間：例如 ACS 10 分鐘內 ECG、腦中風 25 分鐘內 CT、敗血症 1 小時內抗生素、OHCA 5 分鐘內 CPR。下單即算達標，達標加分。</p>
  <p>流程：送進診間 → 穩定生命徵象 → 檢查／治療／會診 → 收住院或回家。<br>亂開不必要的處置扣分；會診要等檢查結果；tPA 要先做 CT；體力低於 30 會開錯醫囑。</p>
  <p><b>結局：</b>分數達到通關分數就提早下班通關；死亡人數太多（PGY 6 人、R1／R2 5 人、R3 以上 4 人）就被開除；撐滿 24 小時沒達標則是平安下班，依分數評等。</p>
+ <p><b>速度：</b>1× 約 1 秒＝遊戲 1 分鐘；開始值班前有 3 秒倒數，可隨時暫停。</p>
  <p><b>快捷鍵：</b>1-8 選床位、Enter 送進診間、空白鍵暫停／繼續、Shift+1/2/4 切速度、字母下醫囑（按鈕上有標示）。<br><b>醫囑佇列：</b>醫師忙碌時再下醫囑會自動排隊（最多 3 筆），做完自動接下一筆；Shift+字母或對按鈕按右鍵可插隊；前置條件不符的會被取消。</p></details>
  <div class="iname"><label for="pname">👨‍⚕️ 你的名字</label><input id="pname" maxlength="8" autocomplete="off" placeholder="想被叫什麼？（可不填）" value="${esc(savedName())}"><small>會顯示在遊戲畫面與結局</small></div>
  <div class="ihead">選擇你的職級（難度）</div>
@@ -647,7 +661,9 @@ function intro(){S.started=false;
 function start(i){const lv=LEVELS[i];S.lv=lv;
  S.player=((document.getElementById('pname')||{}).value||'').trim().slice(0,8);
  try{localStorage.setItem('er24hr_name',S.player)}catch(e){}S.mcis=lv.mcis.map(t=>t+(Math.random()*100-50|0));
- S.started=true;S.speed=1;log(`🕗 08:00 交班完成，${nm()}開始值班（${lv.n}）。`);
+ S.started=true;S.speed=0;S.cd=3;clearInterval(S.cdT);
+ S.cdT=setInterval(()=>{if(!S.started||S.ended||!S.cd){clearInterval(S.cdT);return}if(--S.cd<=0){S.cd=0;S.speed=S.resume||1;clearInterval(S.cdT);}render();},1000);
+ log(`🕗 08:00 交班完成，${nm()}開始值班（${lv.n}）。`);
  for(let k=0;k<lv.init;k++){let c;
   if(k<(lv.minT<=2?2:0)){const pool=CASES.filter(x=>!x.six&&!x.night&&x.t<=2);c=pool[Math.random()*pool.length|0];}
   else{do{c=pick(false)}while(c.six);}
