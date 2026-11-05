@@ -157,6 +157,11 @@ const byId=id=>S.pts.find(p=>p.id===id);
 const has=(p,a)=>p.done.includes(a)||p.pend.some(x=>x.a===a);
 const allDone=p=>p.cs.need.every(n=>p.done.includes(n));
 const hh=t=>{const m=(480+t)%1440;return String(m/60|0).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
+// 大事件跳出對話框：遊戲自動暫停，按「知道了」才繼續；多個事件會排隊
+function popup(icon,title,msg,cls='r'){
+ if(!S.pop)S.pop=[];if(!S.pop.length)S.prevSpeed=S.speed||1;
+ S.pop.push({icon,title,msg,cls});S.speed=0;}
+function popupOk(){S.pop.shift();if(!S.pop.length)S.speed=S.prevSpeed||1;}
 function log(msg,cls=''){S.log.unshift({t:S.t,msg,cls});if(S.log.length>60)S.log.pop();}
 
 function pick(night){
@@ -172,9 +177,10 @@ function spawn(cs,silent,noAmb){
  S.pts.push(p);if(cs.six)S.sixSeen++;
  if(p.amb){const i=S.beds.indexOf(null);if(i>=0){S.beds[i]=p.id;p.loc=i;}}
  if(!silent)log(`${p.amb?'🚑 救護車送來':'🚪 新病人'} ${p.name}：${cs.c}（${cs.cat}・檢傷 ${shown} 級${cs.six?'・六大急症':''}）`,cs.t<=2?'y':'');
+ if(!silent&&cs.six)popup('🚑','六大急症送達！',`${p.name}：${cs.c}\n診斷方向：${cs.dx}${cs.gold?`\n黃金時間：${cs.gold.m} 分鐘內完成「${cs.gold.a}」`:''}`,'y');
  return p;
 }
-function mci(){S.mciDone=true;log('🚨 大量傷患通報！遊覽車翻覆，6 名傷患即將湧入急診！','r');
+function mci(){S.mciDone=true;log('🚨 大量傷患通報！遊覽車翻覆，6 名傷患即將湧入急診！','r');popup('🚨','大量傷患通報！','遊覽車翻覆，6 名傷患即將湧入急診！請優先處理重症。');
  [C('重大外傷併內出血'),C('重大外傷併內出血'),C('創傷性氣胸'),C('前臂骨折'),C('手部裂傷'),C('車禍擦挫傷')].forEach(c=>spawn(c,1,1));}
 function remove(p,sat){const i=S.beds.indexOf(p.id);if(i>=0)S.beds[i]=null;S.pts=S.pts.filter(x=>x!==p);S.sats.push(Math.max(0,sat??p.sat));if(S.sel===p.id)S.sel=null;}
 function missGold(p){if(p.cs.gold&&!p.goldDone){p.goldDone=true;S.sixMiss++;}}
@@ -193,10 +199,10 @@ function tick(){
    const txt=p.cs.res?.[x.a]||(A.c?(need?'同意收治':'沒有適應症，不收'):'無明顯異常');
    if(A.c||TESTS.includes(x.a))log(`🧪 ${p.name} ${x.a}：${txt}`,txt.includes('⚠')?'r':'');
    p.res[x.a]=txt;return false;});
-  if(p.cs.gold&&!p.goldDone&&S.t-p.arr>p.cs.gold.m){missGold(p);log(`⏱ ${p.name}（${p.cs.dx}）已超過黃金時間，尚未完成「${p.cs.gold.a}」`,'y');}
+  if(p.cs.gold&&!p.goldDone&&S.t-p.arr>p.cs.gold.m){missGold(p);log(`⏱ ${p.name}（${p.cs.dx}）已超過黃金時間，尚未完成「${p.cs.gold.a}」`,'y');popup('⏱','黃金時間已過',`${p.name}（${p.cs.dx}）已超過 ${p.cs.gold.m} 分鐘，仍未完成「${p.cs.gold.a}」`,'y');}
   if(!(p.stab||allDone(p)))p.hp-=DEC[p.tt]*SEVM[p.sev-1]*(p.cs.fast||1)*S.lv.dec;
   if(p.loc==null){p.wait++;p.sat-=.25;}else p.sat-=.05;
-  if(p.hp<=0){S.died++;S.score-=40;missGold(p);log(`💀 ${p.name}（${p.cs.dx}）來不及搶救，宣告死亡。`,'r');remove(p,0);}
+  if(p.hp<=0){S.died++;S.score-=40;missGold(p);log(`💀 ${p.name}（${p.cs.dx}）來不及搶救，宣告死亡。`,'r');popup('💀','病人死亡',`${p.name}（${p.cs.dx}）來不及搶救，宣告死亡。\n累計死亡 ${S.died}/${FIRE[S.lv.k]}，達到上限就會被開除。`);remove(p,0);}
   else if(p.loc==null&&LIM[p.tt]&&p.wait>LIM[p.tt]){S.lwbs++;S.score-=8;missGold(p);log(`🚶 ${p.name} 等太久，沒看醫生就自己走了`,'y');remove(p,0);}
  }
  if(S.died>=FIRE[S.lv.k]){S.ended=true;S.result='fired';}
@@ -220,7 +226,7 @@ function finish(){
  if(p.cs.gold&&p.cs.gold.a===a&&!p.goldDone){p.goldDone=true;
   if(S.t-p.arr<=p.cs.gold.m){S.sixHit++;S.score+=10;log(`🏅 ${p.name}（${p.cs.dx}）${a}達標：${S.t-p.arr} 分鐘（目標 ${p.cs.gold.m} 分內）+10`,'g');}
   else{S.sixMiss++;log(`⏱ ${p.name}（${p.cs.dx}）${a}超過黃金時間（${S.t-p.arr} 分鐘）`,'y');}}
- if(a==='tPA'&&!need.includes('tPA')){p.hp-=40;log(`⚠ ${p.name} 不適合血栓溶解卻打了 tPA，出血惡化！`,'r');}
+ if(a==='tPA'&&!need.includes('tPA')){p.hp-=40;log(`⚠ ${p.name} 不適合血栓溶解卻打了 tPA，出血惡化！`,'r');popup('⚠','用藥失誤',`${p.name} 不適合血栓溶解卻打了 tPA，出血惡化！`);}
  if(A.stab&&(a==='穩定生命徵象'||need.includes(a))){p.stab=true;log(`🫁 ${p.name} 生命徵象已穩定`,'g');}
  if(a==='穩定生命徵象'){return}
  if(!need.includes(a))S.over++;
@@ -232,7 +238,7 @@ function finish(){
 function dispo(p,kind){
  const cs=p.cs;
  if(!allDone(p)){S.bad++;S.score-=15;missGold(p);
-  if(p.tt<=2&&Math.random()<.5){S.died++;S.score-=25;log(`💀 ${p.name} 處置不完整就離開，惡化不治（${cs.dx}）`,'r');}
+  if(p.tt<=2&&Math.random()<.5){S.died++;S.score-=25;log(`💀 ${p.name} 處置不完整就離開，惡化不治（${cs.dx}）`,'r');popup('💀','病人死亡',`${p.name}（${cs.dx}）處置不完整就離開，惡化不治。\n累計死亡 ${S.died}/${FIRE[S.lv.k]}。`);}
   else log(`⚠ ${p.name} 還沒處理完就處置，三天後又被送回來（${cs.dx}）`,'r');
   remove(p);return}
  if(kind!==cs.dis){
@@ -374,12 +380,13 @@ function render(){
  }
  if(Date.now()<toastT)h+=`<p class="warn">${toastMsg}</p>`;
  h+='</div></div>';
+ if(S.pop&&S.pop.length&&!S.ended){const e=S.pop[0];h+=`<div class="overlay"><div class="box" style="max-width:420px;text-align:center;border:2px solid ${e.cls==='r'?'var(--bad)':'var(--t3)'}"><div style="font-size:48px">${e.icon}</div><h1 style="font-size:22px">${e.title}</h1><p style="white-space:pre-line;font-size:15px">${e.msg}</p>${S.pop.length>1?`<p class="res">還有 ${S.pop.length-1} 則通知</p>`:''}<button data-do="popok" style="width:100%;padding:12px">知道了，繼續</button></div></div>`;}
  $app.innerHTML=h;
 }
 const $app=document.getElementById('app');
 document.addEventListener('pointerdown',e=>{
  const b=e.target.closest('[data-do]');if(!b||b.disabled)return;const a=b.dataset.a;
- ({sel:()=>S.sel=+a,bed:toBed,act:()=>doAct(a),dispo:()=>doDispo(a),rest:()=>doRest(a),reassess:doReassess,more:()=>S.more=!S.more,speed:()=>S.speed=+a,start:()=>start(+a),again:()=>{newGame();intro()}})[b.dataset.do]?.();
+ ({sel:()=>S.sel=+a,bed:toBed,act:()=>doAct(a),dispo:()=>doDispo(a),rest:()=>doRest(a),reassess:doReassess,more:()=>S.more=!S.more,popok:popupOk,speed:()=>S.speed=+a,start:()=>start(+a),again:()=>{newGame();intro()}})[b.dataset.do]?.();
  render();
 });
 function loop(){
