@@ -65,6 +65,16 @@ button.on{background:var(--ac);color:#04121c;border-color:var(--ac);font-weight:
 #veil .vt{font-size:34px;font-weight:800;color:var(--t3)}#veil .vs{font-size:13px;color:var(--tx);margin:4px 0 10px}
 #veil button{pointer-events:auto;font-size:16px;padding:8px 18px;background:var(--t3);color:#111;font-weight:700}
 .dim{opacity:.55}
+#bedbar{display:none}
+.pt.late{border-color:#ff8a3d;background:#33262a}.pt.late>small{color:#ff8a3d;font-weight:700;text-align:center}
+@media(max-width:1000px){
+ #main>div:nth-child(2){display:contents}
+ .pbeds{order:1}.dock{order:2}.plobby{order:3}.plog{order:4;margin-top:0!important}
+ #bedbar{display:flex;gap:6px;overflow-x:auto;position:sticky;top:var(--toph,64px);z-index:4;background:#0f1720ee;padding:6px 10px;border-bottom:1px solid #263449}
+ #bedbar .chip{flex:none;display:flex;gap:6px;align-items:center;min-width:104px;padding:4px 6px;border-radius:8px;background:var(--card2);border:1px solid transparent;font-size:12px;cursor:pointer}
+ #bedbar .chip.sel{border-color:var(--ac)}#bedbar .chip.empty{opacity:.4;justify-content:center}#bedbar .chip .bar{width:60px;margin-top:2px}
+ #bedbar .tri{width:20px;height:20px;font-size:12px}
+}
 .stat.low{animation:figshake .35s infinite}.stat.low small{color:var(--bad);font-weight:700}
 .mini{font-size:11px;padding:1px 7px;border-radius:999px;background:transparent;border:1px dashed var(--mut);color:var(--mut)}
 .mini:hover:not(:disabled){color:var(--ac);border-color:var(--ac)}
@@ -213,6 +223,7 @@ function newGame(){S={t:0,speed:1,pts:[],nid:1,beds:Array(NB).fill(null),task:nu
 const byId=id=>S.pts.find(p=>p.id===id);
 const has=(p,a)=>p.done.includes(a)||p.pend.some(x=>x.a===a);
 const allDone=p=>p.cs.need.every(n=>p.done.includes(n));
+const LATE={1:3,2:10,3:60,4:90,5:75};const isLate=p=>p.wait>=LATE[p.shown];
 const hh=t=>{const m=(480+t)%1440;return String(m/60|0).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
 // 大事件跳出對話框：遊戲自動暫停，按「知道了」才繼續；多個事件會排隊
 function popup(icon,title,msg,cls='r'){
@@ -222,7 +233,7 @@ function popupOk(){S.pop.shift();if(!S.pop.length)S.speed=S.prevSpeed||1;}
 function log(msg,cls=''){S.log.unshift({t:S.t,msg,cls});if(S.log.length>60)S.log.pop();}
 
 function pick(night){
- const ws=CASES.map(c=>c.w*Math.pow(.2,S.pts.filter(p=>p.cs===c).length)*((S.recent||[]).includes(c)?.4:1)*(c.night?(night?3:.3):1)*(c.six?S.lv.six:(c.t<S.lv.minT?0:1)));let r=Math.random()*ws.reduce((a,b)=>a+b),i=0;
+ const ws=CASES.map(c=>c.w*(S.pts.some(p=>p.cs===c&&p.loc==null)?.02:Math.pow(.2,S.pts.filter(p=>p.cs===c).length))*((S.recent||[]).includes(c)?.4:1)*(c.night?(night?3:.3):1)*(c.six?S.lv.six:(c.t<S.lv.minT?0:1)));let r=Math.random()*ws.reduce((a,b)=>a+b),i=0;
  while(r>ws[i]){r-=ws[i];i++}return CASES[i];
 }
 function spawn(cs,silent,noAmb){
@@ -240,6 +251,11 @@ function spawn(cs,silent,noAmb){
 }
 function mci(){S.mciDone=true;log('🚨 大量傷患通報！遊覽車翻覆，6 名傷患即將湧入急診！','r');popup('🚨','大量傷患通報！','遊覽車翻覆，6 名傷患即將湧入急診！請優先處理重症。');
  [C('重大外傷併內出血'),C('重大外傷併內出血'),C('創傷性氣胸'),C('前臂骨折'),C('手部裂傷'),C('車禍擦挫傷')].forEach(c=>spawn(c,1,1));}
+function deathReason(p){const r=[],miss=p.cs.need.filter(n=>!p.done.includes(n));
+ if(p.loc==null)r.push(`一直在候診區等了 ${p.wait} 分鐘，沒有被送進診間`);
+ else if(p.cs.gold&&p.goldRes!=='hit')r.push(`黃金時間 ${p.cs.gold.m} 分鐘內要完成「${p.cs.gold.a}」，但直到死亡都沒完成（已過 ${S.t-p.arr} 分鐘）`);
+ if(miss.length)r.push(`尚未完成：${miss.join('、')}`);
+ return r.join('；')||'病情本身過重，且處置不夠及時';}
 function record(p,icon,res){const need=p.cs.need,miss=need.filter(n=>!p.done.includes(n)),extra=p.done.filter(a=>a!=='穩定生命徵象'&&!need.includes(a)),d=[];
  if(miss.length)d.push('缺少：'+miss.join('、'));if(extra.length)d.push('多餘處置：'+extra.join('、'));
  if(p.goldRes==='hit')d.push('黃金時間達標');if(p.goldRes==='miss')d.push(`錯過黃金時間（${p.cs.gold.a}）`);
@@ -265,7 +281,7 @@ function tick(){
   if(!(p.stab||allDone(p)))p.hp-=DEC[p.tt]*SEVM[p.sev-1]*(p.cs.fast||1)*S.lv.dec;
   if(!p.crit&&p.hp<35&&p.hp>0){p.crit=1;if(S.speed>1)S.speed=1;log(`⚠ ${p.name}（${p.cs.dx}）病況惡化，血量過低！速度已降回 1×`,'r');}
   if(p.loc==null){p.wait++;p.sat-=.25;}else p.sat-=.05;
-  if(p.hp<=0){S.died++;S.score-=40;missGold(p);log(`💀 ${p.name}（${p.cs.dx}）來不及搶救，宣告死亡。`,'r');p.fate=['💀','來不及搶救，死亡'];popup('💀','病人死亡',`${p.name}（${p.cs.dx}）來不及搶救，宣告死亡。\n累計死亡 ${S.died}/${FIRE[S.lv.k]}，達到上限就會被開除。`);remove(p,0);}
+  if(p.hp<=0){S.died++;S.score-=40;missGold(p);log(`💀 ${p.name}（${p.cs.dx}）來不及搶救，宣告死亡。`,'r');p.fate=['💀','來不及搶救，死亡'];popup('💀','病人死亡',`${p.name}（${p.cs.dx}）來不及搶救，宣告死亡。\n累計死亡 ${S.died}/${FIRE[S.lv.k]}，達到上限就會被開除。\n原因：${deathReason(p)}`);remove(p,0);}
   else if(p.loc==null&&LIM[p.tt]&&p.wait>LIM[p.tt]){S.lwbs++;S.score-=8;missGold(p);log(`🚶 ${p.name} 等太久，沒看醫生就自己走了`,'y');p.fate=['🚶','等太久，沒看醫生就離開'];remove(p,0);}
  }
  if(S.died>=FIRE[S.lv.k]){S.ended=true;S.result='fired';}
@@ -301,7 +317,7 @@ function finish(){
 function dispo(p,kind){
  const cs=p.cs;
  if(!allDone(p)){S.bad++;S.score-=15;missGold(p);p.fate=['⚠','處置未完成就送走，三天後又被送回'];
-  if(p.tt<=2&&Math.random()<.5){S.died++;S.score-=25;p.fate=['💀','處置不完整就離開，惡化不治'];log(`💀 ${p.name} 處置不完整就離開，惡化不治（${cs.dx}）`,'r');popup('💀','病人死亡',`${p.name}（${cs.dx}）處置不完整就離開，惡化不治。\n累計死亡 ${S.died}/${FIRE[S.lv.k]}。`);}
+  if(p.tt<=2&&Math.random()<.5){S.died++;S.score-=25;p.fate=['💀','處置不完整就離開，惡化不治'];log(`💀 ${p.name} 處置不完整就離開，惡化不治（${cs.dx}）`,'r');popup('💀','病人死亡',`${p.name}（${cs.dx}）處置不完整就離開，惡化不治。\n累計死亡 ${S.died}/${FIRE[S.lv.k]}。\n原因：${deathReason(p)}`);}
   else log(`⚠ ${p.name} 還沒處理完就處置，三天後又被送回來（${cs.dx}）`,'r');
   remove(p);return}
  if(kind!==cs.dis){
@@ -404,7 +420,7 @@ function monitor(p){
  requestAnimationFrame(ecgLoop);})();
 function render(){
  if(!S.started)return;
- const lobby=S.pts.filter(p=>p.loc==null).sort((a,b)=>a.shown-b.shown||b.wait-a.wait);
+ const lobby=S.pts.filter(p=>p.loc==null).sort((a,b)=>(a.shown-a.wait/60)-(b.shown-b.wait/60)||b.wait-a.wait); // 檢傷級＋等待時間：每等 60 分鐘視同提高一級
  const sel=byId(S.sel);
  let h=`<div id="top"><div id="clock">${hh(S.t)}</div><span class="tag six" style="font-size:13px;padding:2px 8px">${S.lv.k}</span>
   <div class="stat ${S.st<30?'low':''}"><small>體力 ${S.st.toFixed(0)}${S.st<30?' ⚠ 太累了':''}</small>${bar(S.st,S.st>=30?'var(--ok)':'var(--bad)')}</div>
@@ -416,14 +432,15 @@ function render(){
   <div>${[[0,'⏸ 暫停'],[1,'▶ 1×'],[2,'2×'],[4,'4×']].map(([v,t])=>`<button data-do="speed" data-a="${v}" class="${S.speed===v?'on':''}">${t}</button>`).join(' ')}</div>
   <div><button data-do="rest" data-a="咖啡" ${S.task?'class="dim"':''}>☕ 咖啡 +12</button> <button data-do="rest" data-a="小睡" ${S.task?'class="dim"':''}>😴 小睡20分 +35</button></div></div>`;
  if(S.speed===0&&!(S.pop&&S.pop.length))h+=`<div id="veil"><div><div class="vt">⏸ 已暫停</div><div class="vs">${S.autoPaused?'分頁離開，已自動暫停。':''}可以先想好、先下醫囑，繼續後才會執行</div><button data-do="resume">▶ 繼續（空白鍵）</button></div></div>`;
- h+=`<div id="main"><div class="panel"><h3>候診區（${lobby.length}）</h3><div class="res" style="margin-bottom:6px">快捷鍵：1-8 選床　Enter 進診間　空白 暫停　Shift+1/2/4 速度　字母下醫囑</div><div class="legend">${[1,2,3,4,5].map(i=>`<span class="t${i}">${i} ${TRI[i]}</span>`).join('')}</div>`;
- h+=lobby.map(p=>`<div class="pt ${p.id===S.sel?'sel':''} ${p.hp<35?'crit':''}" title="${p.name} ${p.age}歲：${p.cs.c}" data-do="sel" data-a="${p.id}">${figure(p,72)}<div class="tri t${p.shown}">${p.shown}</div><div class="m"><b>${p.name} ${p.age}歲</b><span>${p.cs.c}</span><div class="tags" style="margin:2px 0">${catTag(p)}${p.known?`<span class="tag">${SEV[p.sev-1]}</span>`:''}</div>${bar(p.hp,hpc(p.hp))}</div><small>${p.wait}分</small></div>`).join('')||'<div class="res">沒有人在等 🎉</div>';
- h+=`</div><div><div class="panel"><h3>急診診間（${S.beds.filter(x=>x).length}/${NB}）</h3><div id="beds">`;
+ h+=`<div id="bedbar">${S.beds.map((id,i)=>{const q=id&&byId(id);return q?`<div class="chip ${q.id===S.sel?'sel':''} ${q.hp<35?'crit':''}" data-do="sel" data-a="${q.id}"><span class="tri t${q.shown}">${q.shown}</span><div><b>${i+1}·${q.name}</b>${bar(q.hp,hpc(q.hp))}</div></div>`:`<div class="chip empty">${i+1}·空</div>`}).join('')}</div>
+ <div id="main"><div class="panel plobby"><h3>候診區（${lobby.length}）</h3><div class="res" style="margin-bottom:6px">快捷鍵：1-8 選床　Enter 進診間　空白 暫停　Shift+1/2/4 速度　字母下醫囑</div><div class="legend">${[1,2,3,4,5].map(i=>`<span class="t${i}">${i} ${TRI[i]}</span>`).join('')}</div>`;
+ h+=lobby.map(p=>`<div class="pt ${p.id===S.sel?'sel':''} ${p.hp<35?'crit':isLate(p)?'late':''}" title="${p.name} ${p.age}歲：${p.cs.c}" data-do="sel" data-a="${p.id}">${figure(p,72)}<div class="tri t${p.shown}">${p.shown}</div><div class="m"><b>${p.name} ${p.age}歲</b><span>${p.cs.c}</span><div class="tags" style="margin:2px 0">${catTag(p)}${p.known?`<span class="tag">${SEV[p.sev-1]}</span>`:''}</div>${bar(p.hp,hpc(p.hp))}</div><small>${p.wait}分${isLate(p)?'<br>⚠久候':''}</small></div>`).join('')||'<div class="res">沒有人在等 🎉</div>';
+ h+=`</div><div><div class="panel pbeds"><h3>急診診間（${S.beds.filter(x=>x).length}/${NB}）</h3><div id="beds">`;
  h+=S.beds.map((id,i)=>{const p=id&&byId(id);if(!p)return `<div class="bed empty">空床 ${i+1}</div>`;
   const busy=S.task&&S.task.pid===p.id;
   return `<div class="bed ${p.id===S.sel?'sel':''} ${busy?'busy':''} ${p.hp<35?'crit':''}" data-do="sel" data-a="${p.id}"><div style="display:flex;gap:6px;align-items:center">${figure(p,72)}<div class="tri t${p.shown}">${p.shown}</div><b>${p.name}</b></div><div class="res">${p.cs.c}</div>${bar(p.hp,hpc(p.hp))}
   <div class="tags">${catTag(p)}${p.known?`<span class="tag">${SEV[p.sev-1]}</span>`:''}${p.stab?'<span class="tag">🫁穩定</span>':''}${p.pend.length?`<span class="tag">⏳等結果 ${p.pend.length}</span>`:''}${allDone(p)?'<span class="tag" style="color:var(--ok)">可處置</span>':''}</div></div>`}).join('');
- h+=`</div></div><div class="panel" style="margin-top:12px"><h3>事件紀錄</h3><div id="log">${S.log.map(l=>`<div class="${l.cls}">[${hh(l.t)}] ${l.msg}</div>`).join('')}</div></div></div>`;
+ h+=`</div></div><div class="panel plog" style="margin-top:12px"><h3>事件紀錄</h3><div id="log">${S.log.map(l=>`<div class="${l.cls}">[${hh(l.t)}] ${l.msg}</div>`).join('')}</div></div></div>`;
  h+=`<div class="panel dock">`;
  if(!sel)h+='<h3>病人處置</h3><div class="res">點選候診區或診間的病人（或按數字鍵 1-8 選床位）</div>';
  else{
