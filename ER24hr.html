@@ -215,7 +215,11 @@ button.sos{background:#7a1f24;border-color:#ff5d5d;color:#fff;font-weight:700;an
 <script>
 const ACT={
  '穩定生命徵象':{d:3,w:0,stab:1,i:'🫁'},
- 'CPR/電擊':{d:5,w:0,stab:1,i:'⚡'},
+ 'CPR':{d:5,w:0,stab:1,i:'⚡'},
+ '電擊':{d:1,w:0,i:'🔌'},
+ '針刺減壓':{d:2,w:0,stab:1,i:'📍'},
+ '神經血管評估':{d:1,w:1,i:'🖐️'},
+ '衛教／追蹤':{d:1,w:0,i:'📝'},
  '插管':{d:4,w:0,stab:1,i:'😮‍💨'},
  'ECG':{d:2,w:3,i:'📈'},
  '抽血':{d:1,w:20,i:'🩸'},
@@ -243,16 +247,17 @@ const ACT={
  '觀察30分':{d:1,w:30,i:'⏱️'},
 };
 // 快捷鍵：數字 1-8 選床位、Enter 送進診間、空白鍵暫停／繼續、字母下醫囑
-const HOT={'穩定生命徵象':'S','CPR/電擊':'R','插管':'T','ECG':'E','抽血':'B','血液培養':'V','尿液檢查':'U','CT':'C','X光':'X','FAST超音波':'F','輸液':'I','輸血':'L','止痛':'P','噴霧治療':'N','腎上腺素':'J','阿斯匹靈':'Q','tPA':'M','抗生素':'A','廣效抗生素':'G','止血加壓':'H','胸管':'K','縫合':'Z','夾板固定':'D','心臟科會診':'Y','神經科會診':'O','外科會診':'W','觀察30分':'0'};
-const GROUPS=[['急救',['穩定生命徵象','CPR/電擊','插管']],
+const HOT={'電擊':'9','針刺減壓':'-','神經血管評估':',','衛教／追蹤':'.','穩定生命徵象':'S','CPR':'R','插管':'T','ECG':'E','抽血':'B','血液培養':'V','尿液檢查':'U','CT':'C','X光':'X','FAST超音波':'F','輸液':'I','輸血':'L','止痛':'P','噴霧治療':'N','腎上腺素':'J','阿斯匹靈':'Q','tPA':'M','抗生素':'A','廣效抗生素':'G','止血加壓':'H','胸管':'K','縫合':'Z','夾板固定':'D','心臟科會診':'Y','神經科會診':'O','外科會診':'W','觀察30分':'0'};
+const GROUPS=[['急救',['穩定生命徵象','CPR','電擊','針刺減壓','插管']],
  ['檢查',['ECG','抽血','血液培養','尿液檢查','CT','X光','FAST超音波']],
  ['治療',['輸液','輸血','止痛','噴霧治療','腎上腺素','阿斯匹靈','tPA','抗生素','廣效抗生素','止血加壓','胸管','縫合','夾板固定']],
- ['會診／觀察',['心臟科會診','神經科會診','外科會診','觀察30分']]];
-const TESTS=['ECG','抽血','CT','X光','FAST超音波','尿液檢查'];
+ ['會診／觀察／評估',['心臟科會診','神經科會診','外科會診','觀察30分','神經血管評估','衛教／追蹤']]];
+const TESTS=['ECG','抽血','CT','X光','FAST超音波','尿液檢查','神經血管評估'];
 // cat: 外傷 / 非外傷；t = 真實檢傷級(TTAS)；six = 六大急症；gold = 黃金時間(分鐘內完成某動作)
 const CASES=[
  // ===== 六大急症 =====
- {six:1,cat:'非外傷',c:'119 送來：無呼吸、無脈搏，CPR 中',v:'PEA 心律',dx:'到院前心跳停止(OHCA)',t:1,need:['CPR/電擊','插管','抽血','心臟科會診'],dis:'admit',w:1.5,gold:{a:'CPR/電擊',m:5},fast:2,res:{抽血:'血鉀偏高、乳酸升高 ⚠',心臟科會診:'恢復循環後安排低溫治療與心導管'}},
+ {six:1,cat:'非外傷',c:'119 送來：無呼吸、無脈搏，CPR 中',v:'PEA 心律',rhythm:'PEA',dx:'到院前心跳停止(OHCA)',t:1,need:['CPR','插管','抽血','心臟科會診'],dis:'admit',w:1,gold:{a:'CPR',m:1},fast:2,res:{抽血:'血鉀偏高、乳酸升高 ⚠',心臟科會診:'恢復循環後安排低溫治療與心導管'}},
+ {six:1,cat:'非外傷',c:'119 送來：倒地後無意識、無脈搏，路人 CPR 中',v:'VF 室顫',rhythm:'VF',dx:'到院前心跳停止(VF)',t:1,need:['CPR','電擊','插管','抽血','心臟科會診'],dis:'admit',w:1,gold:{a:'CPR',m:1},fast:2,res:{抽血:'電解質尚可、Troponin 升高 ⚠',心臟科會診:'恢復循環後安排心導管'}},
  {six:1,cat:'非外傷',c:'胸痛、冒冷汗、左手發麻',v:'BP 100/60 HR 110',dx:'急性冠心症(STEMI)',t:1,need:['ECG','抽血','阿斯匹靈','心臟科會診'],dis:'admit',w:3,gold:{a:'ECG',m:10},res:{ECG:'V2-V5 ST 段上升 ⚠',抽血:'Troponin 明顯升高 ⚠',心臟科會診:'立即安排心導管'}},
  {six:1,cat:'非外傷',c:'突然單側無力、口齒不清',v:'BP 170/95 發作 2 小時',dx:'急性缺血性腦中風',t:1,need:['CT','tPA','神經科會診'],dis:'admit',w:3,gold:{a:'CT',m:25},res:{CT:'無出血，左側 MCA 梗塞 ⚠',神經科會診:'同意血栓溶解，收加護病房'}},
  {six:1,cat:'非外傷',c:'發燒、意識混亂、血壓偏低',v:'T 39.5 BP 80/45 HR 125',dx:'敗血性休克',t:2,need:['抽血','血液培養','廣效抗生素','輸液'],dis:'admit',w:3,gold:{a:'廣效抗生素',m:60},res:{抽血:'乳酸 5.2、WBC 21k ⚠'}},
@@ -274,15 +279,16 @@ const CASES=[
  {cat:'非外傷',c:'抽搐、剛醒來意識模糊',v:'GCS 13',dx:'首次癲癇發作',t:2,need:['抽血','CT'],dis:'admit',w:2,res:{CT:'無出血'}},
  {cat:'非外傷',c:'冒冷汗、意識不清（糖尿病）',v:'血糖 32',dx:'低血糖',t:2,need:['抽血','輸液'],dis:'home',w:2,res:{抽血:'血糖 32 ⚠'}},
  // ===== 外傷 =====
- {cat:'外傷',c:'老人跌倒、髖部劇痛不能站',v:'生命徵象穩定',dx:'髖部骨折',t:3,need:['X光','止痛','外科會診'],dis:'admit',w:2,res:{X光:'股骨頸骨折 ⚠'}},
- {cat:'外傷',c:'腳踝扭傷',v:'生命徵象穩定',dx:'踝關節扭傷',t:5,need:['X光','夾板固定'],dis:'home',w:5,res:{X光:'無骨折'}},
- {cat:'外傷',c:'手被菜刀割傷、持續流血',v:'生命徵象穩定',dx:'手部裂傷',t:4,need:['止血加壓','縫合'],dis:'home',w:4},
- {cat:'外傷',c:'撞到頭、短暫昏倒',v:'GCS 15 輕微頭痛',dx:'輕微頭部外傷',t:4,need:['CT','觀察30分'],dis:'home',w:3,res:{CT:'無顱內出血'}},
+ {cat:'外傷',c:'老人跌倒、髖部劇痛不能站',v:'生命徵象穩定',dx:'髖部骨折',t:3,need:['X光','止痛','神經血管評估','外科會診'],dis:'admit',w:2,res:{X光:'股骨頸骨折 ⚠',神經血管評估:'下肢血液循環與感覺正常'}},
+ {cat:'外傷',c:'腳踝扭傷',v:'生命徵象穩定',dx:'踝關節扭傷',t:5,need:['X光','夾板固定','衛教／追蹤'],dis:'home',w:5,res:{X光:'無骨折'}},
+ {cat:'外傷',c:'手被菜刀割傷、持續流血',v:'生命徵象穩定',dx:'手部裂傷',t:4,need:['止血加壓','神經血管評估','縫合','衛教／追蹤'],dis:'home',w:4,res:{神經血管評估:'手指感覺與血液循環正常，未見肌腱受損'}},
+ {cat:'外傷',c:'撞到頭、短暫昏倒',v:'GCS 15 輕微頭痛',dx:'輕微頭部外傷',t:4,need:['CT','觀察30分','衛教／追蹤'],dis:'home',w:3,res:{CT:'無顱內出血'}},
  {cat:'外傷',c:'熱水燙傷手臂',v:'面積約 5%',dx:'二度燒燙傷',t:4,need:['止痛','輸液'],dis:'home',w:2},
- {cat:'外傷',c:'被狗咬傷小腿',v:'生命徵象穩定',dx:'動物咬傷',t:4,need:['縫合','抗生素'],dis:'home',w:2},
- {cat:'外傷',c:'機車擦撞、四肢擦挫傷',v:'意識清楚',dx:'車禍擦挫傷',t:4,need:['X光','止痛'],dis:'home',w:3,res:{X光:'無骨折'}},
- {cat:'外傷',c:'小朋友玩耍跌倒、手臂變形',v:'哭鬧、其餘正常',dx:'前臂骨折',t:4,need:['X光','夾板固定','止痛'],dis:'home',w:2,res:{X光:'橈骨遠端骨折 ⚠'}},
- {cat:'外傷',c:'胸部撞擊後呼吸困難',v:'SpO2 88% 呼吸音減弱',dx:'創傷性氣胸',t:2,need:['X光','胸管'],dis:'admit',w:1,res:{X光:'右側氣胸 ⚠'}},
+ {cat:'外傷',c:'被狗咬傷小腿',v:'生命徵象穩定',dx:'動物咬傷',t:4,need:['縫合','抗生素','衛教／追蹤'],dis:'home',w:2},
+ {cat:'外傷',c:'機車擦撞、四肢擦挫傷',v:'意識清楚',dx:'車禍擦挫傷',t:4,need:['X光','止痛','衛教／追蹤'],dis:'home',w:3,res:{X光:'無骨折'}},
+ {cat:'外傷',c:'小朋友玩耍跌倒、手臂變形',v:'哭鬧、其餘正常',dx:'前臂骨折',t:4,need:['X光','夾板固定','止痛','神經血管評估','衛教／追蹤'],dis:'home',w:2,res:{X光:'橈骨遠端骨折 ⚠（無明顯移位）',神經血管評估:'遠端血液循環與感覺正常'}},
+ {cat:'外傷',c:'胸部撞擊後呼吸困難',v:'SpO2 88% 呼吸音減弱 血壓穩定',dx:'創傷性氣胸',t:2,need:['X光','胸管'],opt:['穩定生命徵象','FAST超音波','止痛'],dis:'admit',w:1,res:{X光:'右側氣胸 ⚠',FAST超音波:'eFAST：右側肺滑動消失 ⚠'}},
+ {cat:'外傷',c:'車禍後胸部撞擊、呼吸急促、頸部發脹',v:'BP 70/40 SpO2 78% 氣管偏移 頸靜脈怒張 左側呼吸音消失',dx:'張力性氣胸',t:1,need:['穩定生命徵象','針刺減壓','胸管'],dis:'admit',w:.8,fast:3,noimg:1,res:{}},
  {cat:'外傷',c:'被人用刀刺傷腹部',v:'BP 90/60 HR 120',dx:'腹部穿刺傷',t:2,need:['FAST超音波','輸血','外科會診'],dis:'admit',w:1,night:1,res:{FAST超音波:'腹腔積液 ⚠',外科會診:'進刀房探查'}},
 ];
 const C=dx=>CASES.find(c=>c.dx===dx);
@@ -315,7 +321,7 @@ let S, timer;
 
 function newGame(){S={t:0,speed:1,pts:[],nid:1,beds:Array(NB).fill(null),task:null,sel:null,st:100,log:[],
  saved:0,died:0,lwbs:0,bad:0,over:0,overAdm:0,sats:[],score:0,sixHit:0,sixMiss:0,sixSeen:0,
- mcis:[],lv:LEVELS[3],ended:false,started:false,review:[],satE:90,recent:[],ghosts:[],queue:[],overBy:{},acts:{},coffee:0,naps:0,minSt:100,support:null,supportUsed:false,supportOffered:false,epiOk:0,epiBad:0,sched:[],badges:[],mt:[],mtid:1,autoSel:false,mtOk:0,mtBad:0,mtMiss:0};}
+ mcis:[],lv:LEVELS[3],ended:false,started:false,review:[],avoid:0,unavoid:0,satE:90,recent:[],ghosts:[],queue:[],overBy:{},acts:{},coffee:0,naps:0,minSt:100,support:null,supportUsed:false,supportOffered:false,epiOk:0,epiBad:0,sched:[],badges:[],mt:[],mtid:1,autoSel:false,mtOk:0,mtBad:0,mtMiss:0};}
 const byId=id=>S.pts.find(p=>p.id===id);
 const has=(p,a)=>p.done.includes(a)||p.pend.some(x=>x.a===a);
 const allDone=p=>p.cs.need.every(n=>p.done.includes(n));
@@ -347,25 +353,32 @@ function spawn(cs,silent,noAmb){
  if(p.amb){const i=S.beds.indexOf(null);if(i>=0){S.beds[i]=p.id;p.loc=i;}}
  if(!silent&&p.amb){S.focusId=p.id;S.sel=p.id;if(p.loc!=null)p.fresh=true;}
  if(!silent)log(`${p.amb?'🚑 救護車送來':'🚪 新病人'} ${p.name}：${cs.c}（${cs.cat}・檢傷 ${shown} 級${cs.six&&S.lv.hint>=1?'・六大急症':''}）`,cs.t<=2?'y':'');
- if(!silent&&cs.six){if(S.lv.hint>=1)popup('🚑','六大急症送達！',`${p.name}：${cs.c}\n診斷方向：${cs.dx}${cs.gold?`\n黃金時間：${cs.gold.m} 分鐘內完成「${cs.gold.a}」（下單即算達標）`:''}`,'y');
+ if(!silent&&cs.six){if(S.lv.hint>=1)popup('🚑','六大急症送達！',`${p.name}：${cs.c}\n診斷方向：${cs.dx}${cs.gold?`\n黃金時間：${cs.gold.m} 分鐘內開始「${cs.gold.a}」（以開始執行的時間計算）`:''}`,'y');
   else popup('🚑','救護車送達！',`${p.name}：${cs.c}\n狀況危急，請自行判斷、盡快處理。`,'y');}
  return p;
 }
 function mci(){S.mciDone=true;log('🚨 大量傷患通報！遊覽車翻覆，6 名傷患即將湧入急診！','r');popup('🚨','大量傷患通報！','遊覽車翻覆，6 名傷患即將湧入急診！請優先處理重症。');
  [C('重大外傷併內出血'),C('重大外傷併內出血'),C('創傷性氣胸'),C('前臂骨折'),C('手部裂傷'),C('車禍擦挫傷')].forEach(c=>spawn(c,1,1));}
+const unavoidable=p=>p.loc!=null&&p.sev===3&&(p.goldStart!=null||p.cs.need.some(n=>p.done.includes(n)));
+const CLUE={'到院前心跳停止(OHCA)':'無呼吸無脈搏、PEA（無電擊適應症）：立即 CPR、找可逆原因；不要電擊。','到院前心跳停止(VF)':'無脈搏、室顫：立即 CPR，並儘速電擊（可電擊心律）。',
+ '急性冠心症(STEMI)':'胸痛＋冷汗＋左手麻：10 分鐘內 ECG，看到 ST 上升就啟動心導管。','急性缺血性腦中風':'單側無力＋口齒不清：先 CT 排除出血，再評估血栓溶解。','敗血性休克':'發燒＋低血壓＋意識改變：抽血培養後 1 小時內給廣效抗生素並輸液。',
+ '重大外傷併內出血':'高速車禍＋低血壓：FAST 找腹腔出血，輸血並盡快外科。','急性呼吸衰竭':'嘴唇發紺、SpO2 78%：立即氧合支持與氣道處理，必要時插管。','過敏性休克':'接觸過敏原後起疹、喉嚨緊、低血壓：第一線是 IM 腎上腺素，不要先等檢查。',
+ '創傷性氣胸':'胸部撞擊、SpO2 低、呼吸音減弱但血壓穩定：影像確認氣胸後置胸管，不要直接當作張力性氣胸。','張力性氣胸':'低血壓＋氣管偏移＋頸靜脈怒張＋單側呼吸音消失：不要等影像，立即針刺減壓再置胸管。',
+ '前臂骨折':'兒童骨折：確認遠端血液循環與感覺、固定、止痛，並交代追蹤再回家。','手部裂傷':'先止血並檢查肌腱與神經血管，再縫合與衛教傷口照護。','髖部骨折':'老人跌倒髖痛不能站：影像確認、止痛、外科會診後收住院。',
+ '輕微頭部外傷':'短暫昏倒：視危險因子決定 CT，觀察後給頭部外傷衛教。','急性闌尾炎':'右下腹痛＋發燒：抽血、CT 確認，外科會診。','肺炎':'發燒咳嗽喘＋SpO2 偏低：X 光、抽血、抗生素，通常需住院。'};
 function deathReason(p){const r=[],miss=p.cs.need.filter(n=>!p.done.includes(n));
  if(p.loc==null)r.push(`一直在候診區等了 ${p.wait} 分鐘，沒有被送進診間`);
- else if(p.cs.gold&&p.goldRes!=='hit')r.push(`黃金時間 ${p.cs.gold.m} 分鐘內要完成「${p.cs.gold.a}」，但直到死亡都沒完成（已過 ${S.t-p.arr} 分鐘）`);
+ else if(p.cs.gold&&p.goldRes!=='hit')r.push(`黃金時間 ${p.cs.gold.m} 分鐘內要開始「${p.cs.gold.a}」，但直到死亡都沒開始（已過 ${S.t-p.arr} 分鐘）`);
  if(miss.length)r.push(`尚未完成：${miss.join('、')}`);
  return r.join('；')||'病情本身過重，且處置不夠及時';}
-function record(p,icon,res){const need=p.cs.need,miss=need.filter(n=>!p.done.includes(n)),extra=p.done.filter(a=>a!=='穩定生命徵象'&&!need.includes(a)),d=[];
+function record(p,icon,res){const need=p.cs.need,miss=need.filter(n=>!p.done.includes(n)),extra=p.done.filter(a=>a!=='穩定生命徵象'&&!need.includes(a)&&!(p.cs.opt||[]).includes(a)),d=[];
  if(miss.length)d.push('缺少：'+miss.join('、'));if(extra.length)d.push('多餘處置：'+extra.join('、'));
  if(p.goldRes==='hit')d.push('黃金時間達標');if(p.goldRes==='miss')d.push(`錯過黃金時間（${p.cs.gold.a}）`);
- S.review.push({icon,name:p.name,age:p.age,dx:p.cs.dx,res,detail:d.join('；'),tt:p.tt,elapsed:S.t-p.arr,gh:p.goldRes==='hit',ga:p.goldAt,gn:p.cs.gold&&p.cs.gold.a});}
+ S.review.push({icon,name:p.name,age:p.age,dx:p.cs.dx,res,detail:d.join('；'),clue:CLUE[p.cs.dx]||'',tt:p.tt,elapsed:S.t-p.arr,gh:p.goldRes==='hit',ga:p.goldAt,gn:p.cs.gold&&p.cs.gold.a});}
 // 等結果期間的小任務：家屬詢問、確認過敏史、簽同意書…（不占醫師時間，答對加分、答錯／沒理會會讓病人不滿）
 const procOf=p=>['輸血','tPA','縫合','胸管'].find(n=>p.cs.need.includes(n))||'住院';
 const MT={
- allergy:{ic:'🧪',title:'確認過敏史',ok:p=>p.cs.need.some(n=>/抗生素/.test(n)),
+ allergy:{ic:'🧪',gate:1,title:'確認過敏史',ok:p=>p.cs.need.some(n=>/抗生素/.test(n)),
   q:p=>`${p.name} 準備使用抗生素。問過敏史時，他說「以前吃盤尼西林會全身起疹」。怎麼處理？`,
   opts:[['改用非 β-內醯胺類抗生素（例如 levofloxacin）',1],['照原本開 amoxicillin，過敏很少見',0],['先給抗組織胺再照開',0],['整個抗生素都不用了',0]],
   fb:'有明確盤尼西林過敏史，應避免青黴素類，改用其他類別；感染需要治療，不能因此完全不用抗生素。'},
@@ -377,11 +390,11 @@ const MT={
   q:p=>`${p.name} 的家屬焦急地問：「他會不會有事？」`,
   opts:[['誠實說明目前病況、正在做的處置和接下來的計畫',1],['保證「沒事，不用擔心」',0],['請他們先去候診區，別在這裡等',0],['「我在忙，去問護理師」',0]],
   fb:'避免過度保證或敷衍；清楚說明現況與計畫，能建立信任、減少糾紛。'},
- blood:{ic:'🅾️',title:'輸血前核對',ok:p=>p.cs.need.includes('輸血'),
+ blood:{ic:'🅾️',gate:1,title:'輸血前核對',ok:p=>p.cs.need.includes('輸血'),
   q:p=>`${p.name} 要輸血了，輸血前必做的是？`,
   opts:[['雙人核對病人身分與血品、血型相符',1],['血庫送來就直接接上',0],['只核對血袋編號',0],['等輸完再核對',0]],
   fb:'輸血前必須雙人核對病人身分與血品，錯誤輸血可能致命。'},
- pain:{ic:'😖',title:'止痛前確認',ok:p=>p.cs.need.includes('止痛'),
+ pain:{ic:'😖',gate:1,title:'止痛前確認',ok:p=>p.cs.need.includes('止痛'),
   q:p=>`${p.name} 要打止痛藥了，給藥前先確認什麼？`,
   opts:[['過敏史、目前用藥與疼痛程度',1],['不用問，直接給最大劑量',0],['只問他怕不怕痛',0],['等他痛到受不了再說',0]],
   fb:'給藥前要確認過敏史、目前用藥與疼痛評估，才能安全有效止痛。'}};
@@ -391,7 +404,7 @@ function mtHtml(){if(!S.mt||!S.mt.length)return '';const open=S.mtOpen&&S.mt.som
 function maybeMiniTask(){
  if(S.t<15||S.mt.length>=2||(S.pop&&S.pop.length)||S.quiz||Math.random()>.12)return;
  const cand=S.pts.filter(q=>q.loc!=null&&q.pend.length>0);if(!cand.length)return;
- const q=cand[Math.random()*cand.length|0],types=Object.keys(MT).filter(k=>MT[k].ok(q)&&!(q.mtAsked||{})[k]);if(!types.length)return;
+ const q=cand[Math.random()*cand.length|0],types=Object.keys(MT).filter(k=>!MT[k].gate&&MT[k].ok(q)&&!(q.mtAsked||{})[k]);if(!types.length)return;
  const type=types[Math.random()*types.length|0];q.mtAsked=q.mtAsked||{};q.mtAsked[type]=1;
  const m=MT[type];S.mt.push({id:S.mtid++,pid:q.id,type,q:m.q(q),opts:[...m.opts].sort(()=>Math.random()-.5),due:S.t+20});
  log(`📋 ${q.name}：${m.title}（等結果時順便處理）`,'y');}
@@ -415,7 +428,7 @@ function tick(){
  S.st=Math.max(0,S.st-(0.03+(S.task?0.1:0))*S.lv.sd);S.minSt=Math.min(S.minSt??100,S.st);
  if(S.task&&--S.task.left<=0)finish();
  nextQueued();
- if(!S.supportOffered&&!S.supportUsed&&(S.died>=FIRE[S.lv.k]-1||S.score<=-80)){S.supportOffered=true;popup('🆘','快撐不住了嗎？','你已經接近被開除，或分數很低。畫面上方出現了「🆘 請求支援」按鈕（整班限用 1 次）：30 分鐘內新病人減少，診間病人恢復一些，體力回復。','y');}
+ if(!S.supportOffered&&!S.supportUsed&&(S.avoid>=FIRE[S.lv.k]-1||S.score<=-80)){S.supportOffered=true;popup('🆘','快撐不住了嗎？','你已經接近被開除，或分數很低。畫面上方出現了「🆘 請求支援」按鈕（整班限用 1 次）：30 分鐘內新病人減少，診間病人恢復一些，體力回復。','y');}
  {const bad=S.died+S.bad+S.lwbs;if(bad>(S.lastBadSum||0)){S.lastBadSum=bad;S.combo=0;}}
  autoSelect();
  maybeMiniTask();
@@ -432,18 +445,18 @@ function tick(){
    const txt=p.cs.res?.[x.a]||(A.c?(need?'同意收治':'沒有適應症，不收'):'無明顯異常');
    if(A.c||TESTS.includes(x.a))log(`🧪 ${p.name} ${x.a}：${txt}`,txt.includes('⚠')?'r':'');
    p.res[x.a]=txt;return false;});
-  if(p.cs.gold&&!p.goldDone&&S.t-p.arr>p.cs.gold.m){missGold(p);log(S.lv.hint>=1?`⏱ ${p.name}（${p.cs.dx}）已超過黃金時間，尚未完成「${p.cs.gold.a}」`:`⏱ ${p.name} 已超過黃金時間，關鍵處置尚未完成`,'y');popup('⏱','黃金時間已過',S.lv.hint>=1?`${p.name}（${p.cs.dx}）已超過 ${p.cs.gold.m} 分鐘，仍未完成「${p.cs.gold.a}」`:`${p.name} 的關鍵處置已錯過黃金時間！`,'y');}
+  if(p.cs.gold&&!p.goldDone&&p.goldStart==null&&S.t-p.arr>p.cs.gold.m){missGold(p);log(S.lv.hint>=1?`⏱ ${p.name}（${p.cs.dx}）已超過黃金時間，尚未開始「${p.cs.gold.a}」`:`⏱ ${p.name} 已超過黃金時間，關鍵處置尚未完成`,'y');popup('⏱','黃金時間已過',S.lv.hint>=1?`${p.name}（${p.cs.dx}）已超過 ${p.cs.gold.m} 分鐘，仍未開始「${p.cs.gold.a}」`:`${p.name} 的關鍵處置已錯過黃金時間！`,'y');}
   if(!(p.stab||allDone(p))){const gr=(S.t-p.arr)<(p.tt===1?10:p.tt===2?20:0)?.35:1;let d=DEC[p.tt]*SEVM[p.sev-1]*(p.cs.fast||1)*S.lv.dec;d=Math.max(d,p.tt===1?.9:p.tt===2?.4:0)*gr;
    if(p.loc==null)d*=(p.tt===1&&p.wait>20)?3:(p.tt===2&&p.wait>40)?2.5:1;p.hp-=d;}
   if(!p.crit&&p.hp<35&&p.hp>0){p.crit=1;if(S.speed>1)S.speed=1;log(`⚠ ${p.name}（${p.cs.dx}）病況惡化，血量過低！速度已降回 1×`,'r');}
   if(p.loc==null){p.wait++;p.sat-=.25*(cong?2:1);}else p.sat-=.05;
   if(p.loc!=null&&allDone(p)&&!p.pend.length){p.board=(p.board||0)+1;p.sat-=.1;if(p.board===40)log(`🛏️ ${p.name} 已處置完成卻還佔著床 40 分鐘（boarding），請盡快決定收住院或回家`,'y');}
-  if(p.hp<=0){S.died++;S.score-=(S.t<60?25:40);missGold(p);log(`💀 ${p.name}（${p.cs.dx}）來不及搶救，宣告死亡。`,'r');p.fate=['💀','來不及搶救，死亡'];popup('💀','病人死亡',`${p.name}（${p.cs.dx}）來不及搶救，宣告死亡。\n累計死亡 ${S.died}/${FIRE[S.lv.k]}，達到上限就會被開除。\n原因：${deathReason(p)}`);remove(p,0);}
+  if(p.hp<=0){S.died++;const un=unavoidable(p);if(un){S.unavoid++;S.score-=10;}else{S.avoid++;S.score-=(S.t<60?25:40);}missGold(p);log(`💀 ${p.name}（${p.cs.dx}）來不及搶救，宣告死亡。`,'r');p.fate=['💀','來不及搶救，死亡'];popup('💀','病人死亡',`${p.name}（${p.cs.dx}）來不及搶救，宣告死亡。\n${un?'已給予適當處置，但病情過重，屬於不可避免的死亡，不計入被開除次數。':`這是可避免的死亡（可避免死亡 ${S.avoid}/${FIRE[S.lv.k]}，達到上限會被開除）。`}\n原因：${deathReason(p)}`);remove(p,0);}
   else if(p.loc==null&&LIM[p.tt]&&p.wait>LIM[p.tt]){S.lwbs++;S.score-=8;missGold(p);log(`🚶 ${p.name} 等太久，沒看醫生就自己走了`,'y');p.fate=['🚶','等太久，沒看醫生就離開'];remove(p,0);}
  }
- if(S.died>=FIRE[S.lv.k]){S.ended=true;S.result='fired';}
- else if(S.score>=goal()){S.ended=true;S.result='clear';}
- else if(S.t>=1440){S.ended=true;S.result='time';S.score+=Math.round(avgSat()/5);}
+ if(S.avoid>=FIRE[S.lv.k]){S.ended=true;S.result='fired';}
+ else if(S.t>=1440){S.ended=true;S.score+=Math.round(avgSat()/5);S.result=S.score>=goal()?'clear':'time';}
+ else if(S.score>=goal()&&!S.goalBadge){S.goalBadge=true;badge('已達通關分數！撐到 08:00 就通關',undefined,5000);}
 }
 const avgSat=()=>S.satE??90; // 先驗 5 位滿意的病人，避免開局一兩個死亡就直接歸零
 
@@ -453,29 +466,31 @@ function finish(){
  if(a==='小睡'){S.naps++;S.st=Math.min(100,S.st+35);log('😴 小睡醒來，精神好多了','g');return}
  const p=byId(pid);if(!p)return;
  if(a==='__reassess'){p.known=true;const mis=p.shown!==p.tt;
-  log(`🔍 重新檢傷 ${p.name}：${p.tt} 級（${TRI[p.tt]}）、嚴重度${SEV[p.sev-1]}${mis?`，護理師原本評成 ${p.shown} 級！`:''}`,mis||p.sev===3?'y':'');p.shown=p.tt;return}
+  log(`🩺 再評估 ${p.name}：重新測量生命徵象、疼痛與意識後，檢傷更新為 ${p.tt} 級（${TRI[p.tt]}）、目前病情${SEV[p.sev-1]}${mis?`（原本分級 ${p.shown} 級）`:''}`,mis||p.sev===3?'y':'');p.shown=p.tt;return}
  if(a.startsWith('__'))return dispo(p,a.slice(2));
  const A=ACT[a],need=p.cs.need;
  const req=A.c?need.filter(n=>!ACT[n].c):A.req;
  if(req&&!req.every(n=>p.done.includes(n))){log(A.c?`📞 ${a}：「檢查結果呢？先做完檢查再 call 我」（${p.name}）`:`⛔ ${p.name}：「${a}」之前必須先完成 ${req.join('、')}`,'y');return}
- if(S.st<30&&Math.random()<(S.st<15?.4:.2)){log(`😵 太累了，${p.name} 的「${a}」醫囑開錯，白做了`,'r');return}
  if(p.cs.gold&&p.cs.gold.a===a&&!p.goldDone){p.goldDone=true;
-  if(S.t-p.arr<=p.cs.gold.m){p.goldRes='hit';p.goldAt=S.t-p.arr;S.streak=(S.streak||0)+1;if(S.streak===3)badge('黃金時間連續 3 次達標！');S.sixHit++;S.score+=10;log(`🏅 ${p.name}（${p.cs.dx}）${a}達標：${S.t-p.arr} 分鐘（目標 ${p.cs.gold.m} 分內）+10`,'g');}
-  else{p.goldRes='miss';S.streak=0;S.sixMiss++;log(`⏱ ${p.name}（${p.cs.dx}）${a}超過黃金時間（${S.t-p.arr} 分鐘）`,'y');}}
+  const el=p.goldStart??(S.t-p.arr);
+  if(el<=p.cs.gold.m){p.goldRes='hit';p.goldAt=S.t-p.arr;S.streak=(S.streak||0)+1;if(S.streak===3)badge('黃金時間連續 3 次達標！');S.sixHit++;S.score+=10;log(`🏅 ${p.name}（${p.cs.dx}）${a}達標：${el} 分鐘內開始（目標 ${p.cs.gold.m} 分內）+10`,'g');}
+  else{p.goldRes='miss';S.streak=0;S.sixMiss++;log(`⏱ ${p.name}（${p.cs.dx}）${a}超過黃金時間（第 ${el} 分鐘才開始）`,'y');}}
+ if(a==='電擊'&&!need.includes('電擊')){p.hp-=10;log(`⚠ ${p.name} 目前心律（PEA／無電擊適應症）不需電擊，電擊只用於室顫／無脈性室頻，白白電擊反而傷害`,'r');}
+ if(p.cs.noimg&&['X光','CT','FAST超音波'].includes(a)){p.hp-=8;log(`⚠ ${p.name} 疑似張力性氣胸且血行動力不穩，不應等待影像，應立即針刺減壓，延誤會加重休克`,'r');}
  if(a==='tPA'&&!need.includes('tPA')){p.hp-=40;log(`⚠ ${p.name} 不適合血栓溶解卻打了 tPA，出血惡化！`,'r');popup('⚠','用藥失誤',`${p.name} 不適合血栓溶解卻打了 tPA，出血惡化！`);}
  if(A.stab&&(a==='穩定生命徵象'||need.includes(a))){p.stab=true;log(`🫁 ${p.name} 生命徵象已穩定`,'g');}
  if(a==='穩定生命徵象'){return}
  S.acts[a]=(S.acts[a]||0)+1;
- if(!need.includes(a)){S.over++;S.overBy[a]=(S.overBy[a]||0)+1;}
- if(!A.w&&!A.c){ // 立即生效的治療：給病人反應回饋
+ if(!need.includes(a)&&!(p.cs.opt||[]).includes(a)){S.over++;S.overBy[a]=(S.overBy[a]||0)+1;}
+ if(!A.w&&!A.c&&a!=='衛教／追蹤'){ // 立即生效的治療：給病人反應回饋
   if(need.includes(a)){p.hp=Math.min(100,p.hp+8);p.fx=['up','↑ 改善',Date.now()+2600];setTimeout(render,2700);log(`💚 ${p.name} 接受「${a}」後有明顯改善`,'g');}
   else{p.fx=['flat','— 無明顯變化',Date.now()+2600];setTimeout(render,2700);log(`😐 ${p.name} 接受「${a}」後沒有明顯變化`,'y');}}
- if(A.w>0)p.pend.push({a,left:A.w});else p.done.push(a);
+ if(A.w>0){let w=A.w;if(a==='CT'){const free=Math.max(S.ctFree||0,S.t),extra=free-S.t;w+=extra;S.ctFree=free+8;if(extra>0)log(`🧲 CT 掃描器排隊中，預計多等 ${extra} 分鐘`,'y');}p.pend.push({a,left:w});}else p.done.push(a);
 }
 function dispo(p,kind){
  const cs=p.cs;
  if(!allDone(p)){S.bad++;S.score-=15;missGold(p);p.fate=['⚠','處置未完成就送走，三天後又被送回'];
-  if(p.tt<=2&&Math.random()<.5){S.died++;S.score-=25;p.fate=['💀','處置不完整就離開，惡化不治'];log(`💀 ${p.name} 處置不完整就離開，惡化不治（${cs.dx}）`,'r');popup('💀','病人死亡',`${p.name}（${cs.dx}）處置不完整就離開，惡化不治。\n累計死亡 ${S.died}/${FIRE[S.lv.k]}。\n原因：${deathReason(p)}`);}
+  if(p.tt<=2&&Math.random()<.5){S.died++;S.avoid++;S.score-=25;p.fate=['💀','處置不完整就離開，惡化不治'];log(`💀 ${p.name} 處置不完整就離開，惡化不治（${cs.dx}）`,'r');popup('💀','病人死亡',`${p.name}（${cs.dx}）處置不完整就離開，惡化不治。\n可避免死亡 ${S.avoid}/${FIRE[S.lv.k]}。\n原因：${deathReason(p)}`);}
   else log(`⚠ ${p.name} 還沒處理完就處置，三天後又被送回來（${cs.dx}）`,'r');
   remove(p);return}
  if(kind!==cs.dis){
@@ -490,7 +505,10 @@ function dispo(p,kind){
 const QMAX=3;
 function queued(p,a){return S.queue.some(x=>x.pid===p.id&&x.a===a);}
 function prereq(p,a){const A=ACT[a],need=p.cs.need,req=A.c?need.filter(n=>!ACT[n].c):A.req;return !req||req.every(n=>p.done.includes(n));}
-function launch(p,a){if(a==='腎上腺素')return openQuiz(p.id,a);startAct(p,a);}
+const GATE={'抗生素':'allergy','廣效抗生素':'allergy','止痛':'pain','輸血':'blood'};
+function openGate(p,a,g){const m=MT[g];S.quiz={pid:p.id,a,type:g,q:m.q(p),opts:[...m.opts].sort(()=>Math.random()-.5),ic:m.ic,title:m.title,fb:m.fb};S.quizPrev=S.speed;S.speed=0;}
+function launch(p,a){const g=GATE[a];if(g&&!(p.mtAsked||{})[g]){p.mtAsked=p.mtAsked||{};p.mtAsked[g]=1;return openGate(p,a,g);}
+ if(a==='腎上腺素')return openQuiz(p.id,a);startAct(p,a);}
 function doAct(a,front){
  const p=byId(S.sel);if(!p)return;if(p.loc==null)return toast('這位病人還在候診區，請先送進診間（Enter）');
  if(a==='穩定生命徵象'?p.stab:has(p,a))return toast('已經開過了');
@@ -535,12 +553,17 @@ function idleBanner(){
  const txt=needy.length?`⚠ 醫師閒置中：${idleDesc()}，點擊跳到最緊急的那位`:`⚠ 醫師閒置中：診間有空床，候診區有 ${lob.length} 人在等，點擊選最優先的那位`;
  return `<div class="idlebar" data-do="gotoidle">${txt}</div>`;}
 const qLabel=x=>{const q=byId(x.pid);return `${ACT[x.a].i}${x.a}（${q?q.name:'?'}）`;};
-function startAct(p,a){S.task={pid:p.id,a,left:ACT[a].d,total:ACT[a].d};queuedNote(a);}
+function startAct(p,a){let d=ACT[a].d;if(S.st<30){d=Math.ceil(d*1.4);if(!S.slowWarned){S.slowWarned=true;log('😵 體力偏低，動作會變慢（處置時間變長），喝咖啡或小睡可以恢復','y');}}
+ S.task={pid:p.id,a,left:d,total:d};if(p.cs.gold&&p.cs.gold.a===a&&!p.goldDone&&p.goldStart==null)p.goldStart=S.t-p.arr;queuedNote(a);}
 // 腎上腺素小測驗：劑量與途徑，答對加分、答錯扣分並傷害病人
 function openQuiz(pid,a){const opts=[['肌肉注射 0.3–0.5 mg（大腿外側）',1],['靜脈推注 1 mg 快速給藥',0],['皮下注射 0.1 mg',0],['口服 10 mg 錠劑',0]].sort(()=>Math.random()-.5);
  S.quiz={pid,a,q:'過敏性休克使用腎上腺素，劑量與途徑？',opts};S.quizPrev=S.speed;S.speed=0;}
 function quizAnswer(i){const q=S.quiz;if(!q)return;const p=byId(q.pid);S.quiz=null;if(S.quizPrev>0)startBuffer(S.quizPrev);
  if(!p)return;const ok=q.opts[i]&&q.opts[i][1];
+ if(q.type&&q.type!=='epi'){const m=MT[q.type];S.mt=S.mt.filter(t=>!(t.pid===p.id&&t.type===q.type));
+  if(ok){S.score+=2;S.mtOk++;p.sat=Math.min(100,p.sat+8);log(`✅ ${p.name} ${m.title}（執行前確認）：做對了 +2`,'g');startAct(p,q.a);badge(`${m.title}正確 +2`,'ok',2000);}
+  else{S.score-=1;S.mtBad++;p.hp=Math.max(1,p.hp-8);p.sat=Math.max(0,p.sat-10);log(`⚠ ${p.name} ${m.title}（執行前確認）：處理不當 −1`,'r');startAct(p,q.a);popup(m.ic,'確認不夠安全 −1',m.fb,'r');}
+  return;}
  if(ok){S.score+=3;S.epiOk++;log(`💉 ${p.name} 腎上腺素：劑量與途徑正確（IM 0.3–0.5 mg）+3`,'g');}
  else{S.score-=3;S.epiBad++;p.hp=Math.max(1,p.hp-10);p.fx=['down','↓ 惡化',Date.now()+2600];setTimeout(render,2700);log(`⚠ ${p.name} 腎上腺素劑量或途徑錯誤！正確是 IM 0.3–0.5 mg（大腿外側）；休克無反應才考慮 IV 小劑量輸注。-3`,'r');}
  startAct(p,q.a);
@@ -548,7 +571,8 @@ function quizAnswer(i){const q=S.quiz;if(!q)return;const p=byId(q.pid);S.quiz=nu
  else popup('💉','答錯了 −3，病人受到傷害','正確答案：IM 0.3–0.5 mg（大腿外側）。\n• 靜脈推注 1 mg 是心跳停止的劑量，用在有脈搏的病人容易造成嚴重心律不整與高血壓。\n• 皮下吸收慢、口服無效，休克時都來不及。','r');}
 function doReassess(){const p=byId(S.sel);if(!p||p.known)return;if(S.task)return busyToast();S.task={pid:p.id,a:'__reassess',left:1};}
 function doRest(a){if(S.task)return busyToast();S.task={pid:null,a,left:a==='小睡'?20:1};}
-function doDispo(k){const p=byId(S.sel);if(!p||p.loc==null)return;if(S.task)return busyToast();S.task={pid:p.id,a:'__'+k,left:k==='admit'?3:2};queuedNote(k==='admit'?'收住院':'回家');}
+function doDispo(k){const p=byId(S.sel);if(!p||p.loc==null)return;if(S.task)return busyToast();
+ if(S.mt.some(t=>t.pid===p.id&&t.type==='consent'))return toast('請先完成這位病人的「簽同意書」待辦，再辦理住院／離院');S.task={pid:p.id,a:'__'+k,left:k==='admit'?3:2};queuedNote(k==='admit'?'收住院':'回家');}
 function toBed(){const p=byId(S.sel);if(!p||p.loc!=null)return;const i=S.beds.indexOf(null);if(i<0)return toast('沒有空床了！');S.beds[i]=p.id;p.loc=i;}
 function busyToast(){toast(S.task?`醫師正在忙（${taskText()}）${S.speed?'':'——遊戲暫停中，按「▶ 繼續」才會做完'}`:'');}
 function queuedNote(a){if(!S.speed)toast(`已下達「${a}」，但遊戲暫停中，按「▶ 繼續」或空白鍵才會開始執行`);}
@@ -559,7 +583,7 @@ const bar=(v,c)=>`<div class="bar"><i style="width:${Math.max(0,Math.min(100,v))
 const hpc=v=>v>60?'var(--ok)':v>30?'var(--t3)':'var(--bad)';
 const catTag=p=>`<span class="tag ${p.cs.cat==='外傷'?'tr':'nt'}">${p.cs.cat}</span>${p.cs.six?(S.lv.hint>=1?'<span class="tag six">六大急症</span>':'<span class="tag six">🚑 救護車</span>'):''}`;
 function taskText(){if(!S.task)return '閒置';const t=S.task,p=byId(t.pid);
- const nm=t.a==='__reassess'?'重新檢傷':t.a.startsWith('__')?(t.a==='__admit'?'辦理住院':'開立出院'):t.a;return `${nm}${p?'（'+p.name+'）':''} 剩 ${t.left} 分`;}
+ const nm=t.a==='__reassess'?'再評估':t.a.startsWith('__')?(t.a==='__admit'?'辦理住院':'開立出院'):t.a;return `${nm}${p?'（'+p.name+'）':''} 剩 ${t.left} 分`;}
 /* ---- 病人人形：表情依血量/等待、動作依病情 ---- */
 function figure(p,sz){
  const cs=p.cs,s=cs.c+cs.dx+cs.v,hp=p.hp;
@@ -612,7 +636,7 @@ function vitals(p){
  const arrest=/心跳停止|無脈搏/.test(p.cs.c+p.cs.dx);
  const worse=p.stab||allDone(p)?0:Math.max(0,60-p.hp);
  const j=((S.t+p.id)%3)-1;
- if(arrest)return {arrest:true,hr:0,sbp:0,dbp:0,spo2:0,rr:0,tp,gcs:3,v};
+ if(arrest)return {arrest:true,rhythm:p.cs.rhythm,hr:0,sbp:0,dbp:0,spo2:0,rr:0,tp,gcs:3,v};
  hr=Math.round(hr+worse/3+j);sbp=Math.round(sbp-worse/2.5+j);dbp=Math.round(dbp-worse/4);spo2=Math.max(50,Math.round(spo2-worse/6));rr=Math.round(rr+worse/5);
  return {arrest:false,hr,sbp,dbp,spo2,rr,tp,gcs,v,st:/冠心症|STEMI/.test(p.cs.dx)};}
 function vitAlert(p){const v=vitals(p);return v.arrest||v.sbp<90||v.spo2<92||v.hr>130||v.hr<45||v.rr>28||v.gcs<=12||v.tp>=39.5;}
@@ -620,14 +644,14 @@ function monitor(p){
  const m=vitals(p);MON=m;
  const bad=(c)=>c?'color:#ff5252;animation:blink 1s infinite':'';
  const cell=(lab,val,unit,col,alarm)=>`<div style="padding:4px 8px;border-left:1px solid #1d3a2a"><div style="font-size:11px;color:${col};opacity:.85">${lab}</div><div style="font-size:26px;font-weight:700;line-height:1;color:${col};${bad(alarm)}">${val}<small style="font-size:11px;font-weight:400"> ${unit}</small></div></div>`;
- return `<div class="mon"><div class="monwave"><svg viewBox="0 0 260 64" preserveAspectRatio="none" width="100%" height="64"><path id="ecgp" d="" fill="none" stroke="#39ff7a" stroke-width="1.8"/></svg><span class="monlab">${m.arrest?'⚠ 無心跳 PEA／心跳停止':'II　ECG'}</span></div>
+ return `<div class="mon"><div class="monwave"><svg viewBox="0 0 260 64" preserveAspectRatio="none" width="100%" height="64"><path id="ecgp" d="" fill="none" stroke="#39ff7a" stroke-width="1.8"/></svg><span class="monlab">${m.arrest?'⚠ 無脈搏・心律 '+(m.rhythm||'—'):'II　ECG'}</span></div>
  <div class="monnum">${cell('HR 心率',m.arrest?'0':m.hr,'/min','#39ff7a',!m.arrest&&(m.hr>120||m.hr<50))}${cell('BP 血壓',m.arrest?'--/--':m.sbp+'/'+m.dbp,'mmHg','#ff6b6b',!m.arrest&&m.sbp<90)}${cell('SpO₂ 血氧',m.arrest?'--':m.spo2,'%','#4dd0ff',!m.arrest&&m.spo2<92)}${cell('RR 呼吸',m.arrest?'0':m.rr,'/min','#ffe066',!m.arrest&&(m.rr>24||m.rr<10))}${cell('Temp 體溫',m.tp.toFixed(1),'°C','#ffffff',m.tp>=38.5)}${cell('GCS 意識',m.gcs,'/15','#d0a8ff',m.gcs<=13)}</div>
  <div class="monnote">${m.v}</div></div>`;}
 (function ecgLoop(){const el=document.getElementById('ecgp');
  if(el&&MON){const W=260,B=40,hr=MON.hr,per=hr>0?Math.max(14,3600/hr/ (60/ 60)):0,off=performance.now()/1000*60;let d='';
   const G=(x,m,s,a)=>a*Math.exp(-((x-m)*(x-m))/(2*s*s));
   for(let x=0;x<=W;x+=2){let y=0;
-   if(MON.arrest)y=Math.sin((x+off)/9)*1.2+Math.sin((x+off)/3.1)*0.8;
+   if(MON.arrest)y=MON.rhythm==='VF'?Math.sin((x+off)/4)*11+Math.sin((x+off)/1.7)*6:Math.sin((x+off)/9)*1.2+Math.sin((x+off)/3.1)*0.8;
    else{const ph=((x+off)%per)/per;y=G(ph,.15,.03,4)-G(ph,.27,.012,4)+G(ph,.30,.012,26)-G(ph,.33,.014,7)+G(ph,.62,.06,8);
     if(MON.st&&ph>.33&&ph<.55)y+=9;
     if(MON.hr>0&&MON.spo2<85)y+=Math.sin((x+off)/2)*.6;}
@@ -637,7 +661,7 @@ function monitor(p){
 const MINI={ok:'M0 7 H8 l2 -2 2 2 H18 l2 3 3 -11 3 14 2 -6 H40 l3 -3 3 3 H56',chaos:'M0 7 l5 -6 4 12 3 -10 5 9 4 -11 6 12 4 -8 5 9 6 -7 H56',flat:'M0 7 H56'};
 const fxOn=p=>p.fx&&Date.now()<p.fx[2];
 function fxHtml(p){return fxOn(p)?`<div class="fx ${p.fx[0]}">${p.fx[1]}</div>`:'';}
-function miniMon(p){const v=vitals(p),k=v.arrest?'flat':p.hp<20?'chaos':'ok',al=vitAlert(p);const d=MINI[k];
+function miniMon(p){const v=vitals(p),k=v.arrest?(v.rhythm==='VF'?'chaos':'flat'):p.hp<20?'chaos':'ok',al=vitAlert(p);const d=MINI[k];
  return `<div class="mmon ${al?'al':''} ${fxOn(p)&&p.fx[0]==='up'?'upg':''}"><svg viewBox="0 0 56 14"><g class="mscroll"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="${d}" transform="translate(56 0)" fill="none" stroke="currentColor" stroke-width="1.5"/></g></svg>${v.arrest?'— 無心跳':'HR '+v.hr}</div>`;}
 function doingHtml(p){const t=S.task;if(!t||t.pid!==p.id)return '';
  const ic=ACT[t.a]?ACT[t.a].i:t.a==='__reassess'?'🔍':t.a==='__admit'?'🏥':t.a==='__home'?'🏠':'⏳';
@@ -651,16 +675,16 @@ function render(){
  let h=`<div id="top"><div id="clock">${hh(S.t)}</div><span class="tag six" style="font-size:13px;padding:2px 8px">${S.lv.k}</span>${S.player?`<span class="tag" style="font-size:13px;padding:2px 8px">👨‍⚕️ ${esc(S.player)}</span>`:''}
   <div class="stat ${S.st<30?'low':''}"><small>體力 ${S.st.toFixed(0)}${S.st<30?' ⚠ 太累了':''}</small>${bar(S.st,S.st>=30?'var(--ok)':'var(--bad)')}</div>
   <div class="stat ${avgSat()<50?'low':''}"><small>病人滿意度 ${avgSat().toFixed(0)}${avgSat()<50?' ⚠ 民怨四起':''}</small>${bar(avgSat(),avgSat()>=50?'var(--ac)':'var(--bad)')}</div>
-  <div class="stat"><small>救回 ✅ ${S.saved}　死亡 💀 ${S.died}/${FIRE[S.lv.k]}</small><small>跑掉 🚶 ${S.lwbs}　糾紛 ⚠ ${S.bad}</small></div>
+  <div class="stat"><small>救回 ✅ ${S.saved}　死亡 💀 ${S.died}（可避免 ${S.avoid}/${FIRE[S.lv.k]}）</small><small>跑掉 🚶 ${S.lwbs}　糾紛 ⚠ ${S.bad}</small></div>
   <div class="stat"><small>六大急症黃金時間</small><b>🏅 ${S.sixHit} / ${S.sixHit+S.sixMiss}</b></div>
   <div class="stat"><small>分數／通關 ${goal()}</small><b>${S.score}</b>${bar(Math.max(0,S.score)/Math.max(1,goal())*100,'var(--ac)')}</div>
   <div class="stat" style="flex:1;min-width:220px"><small>醫師目前</small><b class="${idleNow()?'idle':''}">${taskText()}</b>${S.queue.length?`<div class="qline">下一個：${S.queue.map((x,i)=>`<span class="qi">${qLabel(x)}<button class="qx" data-do="qdel" data-a="${i}" title="取消">✕</button></span>`).join('')}</div>`:''}</div>
   <div>${[[0,'⏸ 暫停'],[1,'▶ 1×'],[2,'2×'],[4,'4×']].map(([v,t])=>`<button data-do="speed" data-a="${v}" class="${S.speed===v?'on':''}">${t}</button>`).join(' ')}</div>
-  <div>${S.mt&&S.mt.length?`<button data-do="gotomt" class="pill">📋 待辦 ${S.mt.length}</button> `:''}${!S.supportUsed&&(S.died>=FIRE[S.lv.k]-1||S.score<=-80)?`<button data-do="support" class="sos">🆘 請求支援（限 1 次）</button> `:''}${readyPts().length>=2?`<button data-do="bulk" data-a="home" class="pill">🏠 全部回家 (${readyPts().length})</button> <button data-do="bulk" data-a="admit" class="pill">🏥 全部住院 (${readyPts().length})</button> `:''}<button data-do="autosel" class="${S.autoSel?'on':''}" title="醫師閒下來時，自動幫你選到最緊急的病人">🎯 自動選最緊急：${S.autoSel?'開':'關'}</button> <button data-do="rest" data-a="咖啡" ${S.task?'class="dim"':''}>☕ 咖啡 +12</button> <button data-do="rest" data-a="小睡" ${S.task?'class="dim"':''}>😴 小睡20分 +35</button></div></div>`;
+  <div>${S.mt&&S.mt.length?`<button data-do="gotomt" class="pill">📋 待辦 ${S.mt.length}</button> `:''}${!S.supportUsed&&(S.avoid>=FIRE[S.lv.k]-1||S.score<=-80)?`<button data-do="support" class="sos">🆘 請求支援（限 1 次）</button> `:''}${readyPts().length>=2?`<button data-do="bulk" data-a="home" class="pill">🏠 全部回家 (${readyPts().length})</button> <button data-do="bulk" data-a="admit" class="pill">🏥 全部住院 (${readyPts().length})</button> `:''}<button data-do="autosel" class="${S.autoSel?'on':''}" title="醫師閒下來時，自動幫你選到最緊急的病人">🎯 自動選最緊急：${S.autoSel?'開':'關'}</button> <button data-do="rest" data-a="咖啡" ${S.task?'class="dim"':''}>☕ 咖啡 +12</button> <button data-do="rest" data-a="小睡" ${S.task?'class="dim"':''}>😴 小睡20分 +35</button></div></div>`;
  if(!S.ended&&S.hold&&S.speed===0&&!(S.pop&&S.pop.length))h+=S.hold.kind==='start'?`<div id="veil"><span class="vt">🏥 準備好就開始值班</span><span class="vs">先看一下候診區和診間，時間還沒開始走</span><button data-do="resume">▶ 開始值班（空白鍵）</button></div>`:`<div id="veil"><span class="vt">⏳ ${S.hold.left} 秒後繼續</span><span class="vs">給你一點反應時間</span><button data-do="resume">立即繼續</button></div>`;
  else if(!S.ended&&S.speed===0&&!(S.pop&&S.pop.length))h+=`<div id="veil"><span class="vt">⏸ 已暫停</span><span class="vs">${S.autoPaused?'分頁離開，已自動暫停・':''}仍可下醫囑，繼續後才會執行</span><button data-do="resume">▶ 繼續（空白鍵）</button></div>`;
  h+=`<div id="bedbar">${S.beds.map((id,i)=>{const q=id&&byId(id);return q?`<div class="chip ${q.id===S.sel?'sel':''} ${q.hp<35?'crit':''} ${q.fresh||flashing(q)?'fresh':''}" data-do="sel" data-a="${q.id}"><span class="tri t${q.shown}">${q.shown}</span><div><b>${i+1}·${q.name} ${ydot(q)}</b>${bar(q.hp,hpc(q.hp))}</div></div>`:`<div class="chip empty">${i+1}·空</div>`}).join('')}</div>
- <div id="main"><div class="panel plobby"><h3>候診區（${lobby.length}）</h3><div class="res" style="margin-bottom:6px">快捷鍵：1-8 選床　Enter 進診間　空白 暫停　Shift+1/2/4 速度　字母下醫囑（忙碌時自動排隊，最多 3 筆；Shift+字母或右鍵＝插隊）</div><div class="legend">${[1,2,3,4,5].map(i=>`<span class="t${i}">${i} ${TRI[i]}</span>`).join('')}</div>`;
+ <div id="main"><div class="panel plobby">${S.mt&&S.mt.length?'<h3>📋 全院待辦</h3>'+mtHtml():''}<h3>候診區（${lobby.length}）</h3><div class="res" style="margin-bottom:6px">快捷鍵：1-8 選床　Enter 進診間　空白 暫停　Shift+1/2/4 速度　字母下醫囑（忙碌時自動排隊，最多 3 筆；Shift+字母或右鍵＝插隊）</div><div class="legend">${[1,2,3,4,5].map(i=>`<span class="t${i}">${i} ${TRI[i]}</span>`).join('')}</div>`;
  h+=lobby.map(p=>`<div class="pt ${p.id===S.sel?'sel':''} ${p.hp<35?'crit':isLate(p)?'late':''} ${flashing(p)?'fresh':''}" title="${p.name} ${p.age}歲：${p.cs.c}" data-do="sel" data-a="${p.id}">${figure(p,72)}<div class="tri t${p.shown}">${p.shown}</div><div class="m"><b>${p.name} ${p.age}歲</b><span>${p.cs.c}</span><div class="tags" style="margin:2px 0">${catTag(p)}${vitAlert(p)?'<span class="tag alert">⚠ 生命徵象異常</span>':''}${p.known?`<span class="tag">${SEV[p.sev-1]}</span>`:''}</div>${bar(p.hp,hpc(p.hp))}</div><small>${p.wait}分${isLate(p)?'<br>⚠久候':''}</small></div>`).join('')||'<div class="res">沒有人在等 🎉</div>';
  h+=`</div><div><div class="panel pbeds"><h3>急診診間（${S.beds.filter(x=>x).length}/${NB}）</h3><div id="beds">`;
  h+=S.beds.map((id,i)=>{const p=id&&byId(id);if(!p){const g=(S.ghosts||[]).find(x=>x.bed===i&&S.t<x.until);
@@ -671,26 +695,26 @@ function render(){
   <div class="tags">${catTag(p)}${vitAlert(p)?'<span class="tag alert">⚠ 生命徵象異常</span>':''}${p.known?`<span class="tag">${SEV[p.sev-1]}</span>`:''}${p.stab?'<span class="tag">🫁穩定</span>':''}${p.pend.length?`<span class="tag">⏳等結果 ${p.pend.length}</span>`:''}${S.queue.filter(x=>x.pid===p.id).map(x=>`<span class="tag qq" title="排隊中：${x.a}">⏭${ACT[x.a].i}</span>`).join('')}${allDone(p)?'<span class="tag" style="color:var(--ok)">可處置</span>':''}</div></div>`}).join('');
  h+=`</div></div><div class="panel plog" style="margin-top:12px"><h3>事件紀錄</h3><div id="log">${S.log.map(l=>`<div class="${l.cls}">[${hh(l.t)}] ${l.msg}</div>`).join('')}</div></div></div>`;
  h+=`<div class="panel dock">`+idleBanner();
- if(!sel)h+='<h3>病人處置</h3><div class="res">點選候診區或診間的病人（或按數字鍵 1-8 選床位）</div>'+mtHtml();
+ if(!sel)h+='<h3>病人處置</h3><div class="res">點選候診區或診間的病人（或按數字鍵 1-8 選床位）</div>';
  else{
   const dis=S.task?'class="dim"':'';
   h+=`<div class="head"><div style="display:flex;gap:10px;align-items:center">${figure(sel,100)}<div style="min-width:0"><div style="display:flex;gap:6px;align-items:center"><div class="tri t${sel.shown}">${sel.shown}</div><b style="font-size:16px">${sel.name}，${sel.age}歲</b></div>
-   <div class="tags">${catTag(sel)}<span class="tag">${TRI[sel.shown]}</span>${sel.known?`<span class="tag">嚴重度：${SEV[sel.sev-1]}</span>`:'<span class="tag">嚴重度：未評估</span>'}<button class="mini ${S.task?'dim':''}" data-do="reassess" title="重新檢傷（1 分）：確認真實檢傷級與嚴重度" ${sel.known?'disabled':''}>🔍 重新檢傷 1分</button></div>
+   <div class="tags">${catTag(sel)}<span class="tag">${TRI[sel.shown]}</span>${sel.known?`<span class="tag">再評估：${SEV[sel.sev-1]}</span>`:'<span class="tag">再評估：尚未</span>'}<button class="mini ${S.task?'dim':''}" data-do="reassess" title="重新測量生命徵象、疼痛與意識，依新資料更新檢傷（1 分）" ${sel.known?'disabled':''}>🩺 再評估 1分</button></div>
    <p style="margin:4px 0">主訴：${sel.cs.c}</p></div></div>
    ${monitor(sel)}${bar(sel.hp,hpc(sel.hp))}
    <p class="res" style="margin:4px 0">病況：${allDone(sel)?'<span style="color:var(--ok)">✔ 必要處置已完成，可決定處置</span>':sel.loc==null?'<span class="warn">⚠ 等待中，持續惡化</span>':sel.stab?'<span style="color:var(--t3)">🫁 生命徵象穩定，但仍有必要處置未完成</span>':'<span class="warn">⚠ 尚未處理完，仍在緩慢惡化</span>'}　必要處置進度 ${sel.cs.need.filter(n=>sel.done.includes(n)).length}/${sel.cs.need.length}</p>
    <div class="chk">${sel.stab?'<span class="ck ok">✓ 穩定生命徵象</span>':''}${sel.done.map(x=>`<span class="ck ok">✓ ${x}</span>`).join('')}${sel.pend.map(x=>`<span class="ck wait">⏳ ${x.a}（等結果）</span>`).join('')}</div>
-   ${sel.cs.gold&&!sel.goldDone&&S.lv.hint>=1?`<p class="res" style="margin:4px 0">⏱ 黃金時間：${sel.cs.gold.m} 分鐘內完成「${sel.cs.gold.a}」，下單即算達標（已過 ${S.t-sel.arr} 分）</p>`:''}${hintHtml(sel)}</div><div class="body">${mtHtml()}`;
+   ${sel.cs.gold&&!sel.goldDone&&S.lv.hint>=1?`<p class="res" style="margin:4px 0">⏱ 黃金時間：${sel.cs.gold.m} 分鐘內開始「${sel.cs.gold.a}」，以開始執行的時間計算（已過 ${S.t-sel.arr} 分）</p>`:''}${hintHtml(sel)}</div><div class="body">`;
   if(sel.loc!=null){
    h+=`<div class="res" style="margin:6px 0">${Object.entries(sel.res).map(([k,v])=>`<div><b>${k}</b>：<span class="${v.includes('⚠')?'warn':''}">${v}</span></div>`).join('')||'尚無檢查結果'}</div>`;
    const hiKey=leadOf(sel),pin=pinFor(sel);
    const btn=k=>{const A=ACT[k],cl=[S.task?'dim':'',k===hiKey?'hi':''].filter(Boolean).join(' ');
-    return `<button data-do="act" data-a="${k}" ${(k==='穩定生命徵象'?sel.stab:has(sel,k))?'disabled':''} ${cl?`class="${cl}"`:''}>${k===hiKey?'⭐ ':''}${A.i} ${k} <span class="key">[${HOT[k]}]</span><br><small class="res">${A.d}分${A.w?'＋等'+A.w:''}${sel.cs.gold&&sel.cs.gold.a===k&&!sel.goldDone&&S.lv.hint>=1?'<br>⏱ 下單即算達標':''}</small></button>`};
-   const TABS=[['rec','⭐ 建議'],['test','檢查'],['tx','治療'],['er','急救'],['con','會診／觀察']],tab=S.tab||'rec';
+    return `<button data-do="act" data-a="${k}" ${(k==='穩定生命徵象'?sel.stab:has(sel,k))?'disabled':''} ${cl?`class="${cl}"`:''}>${k===hiKey?'⭐ ':''}${A.i} ${k} <span class="key">[${HOT[k]}]</span><br><small class="res">${A.d}分${A.w?'＋等'+A.w:''}${sel.cs.gold&&sel.cs.gold.a===k&&!sel.goldDone&&S.lv.hint>=1?'<br>⏱ 以開始時間計算':''}</small></button>`};
+   const TABS=[['rec','⭐ 建議'],['test','檢查'],['tx','治療'],['er','急救'],['con','會診／評估']],tab=S.tab||'rec';
    const tabList={test:GROUPS[1][1],tx:GROUPS[2][1],er:GROUPS[0][1],con:GROUPS[3][1]};
    h+=`<div class="tabs">${TABS.map(([id,t])=>`<button class="tabbtn ${tab===id?'on':''}" data-do="tab" data-a="${id}">${t}</button>`).join('')}</div>`;
-   if(tab==='rec'){h+=`<div class="gl">依主訴，最相關的處置</div><div class="grid3">${pin.map(btn).join('')}</div>`;
-    const rest=COMMON.filter(k=>!pin.includes(k));if(rest.length)h+=`<div class="gl">其他常用</div><div class="grid3">${rest.map(btn).join('')}</div>`;}
+   if(tab==='rec'){if(pin.length)h+=`<div class="gl">依主訴，最相關的處置</div><div class="grid3">${pin.map(btn).join('')}</div>`;
+    const rest=COMMON.filter(k=>!pin.includes(k));if(rest.length)h+=`<div class="gl">${pin.length?'其他常用':'常用處置'}</div><div class="grid3">${rest.map(btn).join('')}</div>`;}
    else h+=`<div class="grid3">${tabList[tab].map(btn).join('')}</div>`;
   }
   h+=`</div><div class="foot">${Date.now()<toastT?`<p class="warn" style="margin:0 0 6px">${toastMsg}</p>`:''}`;
@@ -700,7 +724,7 @@ function render(){
  }
  h+='</div></div>';
  {const bd=(S.badges||[]).filter(b=>Date.now()<b.until);if(bd.length)h+=`<div id="badges">${bd.map(b=>`<div class="bdg ${b.cls||''}">${b.cls?'':'🏅 '}${b.msg}</div>`).join('')}</div>`;}
- if(S.quiz&&!S.ended&&!(S.pop&&S.pop.length)){h+=`<div class="overlay"><div class="box ${Date.now()<(S.nag||0)?'nag':''}" style="max-width:440px;border:2px solid var(--ac)"><div style="font-size:40px;text-align:center">💉</div><h1 style="font-size:20px;text-align:center">${S.quiz.q}</h1><p class="res" style="text-align:center">選對加 3 分；選錯會傷害病人。（按 1–4 作答）</p>${Date.now()<(S.nag||0)?'<p class="warn nagtxt">請先回答這題，再下醫囑</p>':''}${S.quiz.opts.map((o,i)=>`<button class="qbtn" data-do="quiz" data-a="${i}"><b>${i+1}.</b> ${o[0]}</button>`).join('')}</div></div>`;}
+ if(S.quiz&&!S.ended&&!(S.pop&&S.pop.length)){h+=`<div class="overlay"><div class="box ${Date.now()<(S.nag||0)?'nag':''}" style="max-width:440px;border:2px solid var(--ac)"><div style="font-size:40px;text-align:center">${S.quiz.ic||'💉'}</div>${S.quiz.title?`<div class="res" style="text-align:center">執行前確認：${S.quiz.title}</div>`:''}<h1 style="font-size:20px;text-align:center">${S.quiz.q}</h1><p class="res" style="text-align:center">選對加分；選錯會傷害病人。（按 1–4 作答）</p>${Date.now()<(S.nag||0)?'<p class="warn nagtxt">請先回答這題，再下醫囑</p>':''}${S.quiz.opts.map((o,i)=>`<button class="qbtn" data-do="quiz" data-a="${i}"><b>${i+1}.</b> ${o[0]}</button>`).join('')}</div></div>`;}
  if(S.pop&&S.pop.length){const e=S.pop[0];h+=`<div class="overlay"><div class="box ${Date.now()<(S.nag||0)?'nag':''}" style="max-width:420px;text-align:center;border:2px solid ${e.cls==='r'?'var(--bad)':'var(--t3)'}"><div style="font-size:48px">${e.icon}</div><h1 style="font-size:22px">${e.title}</h1><p style="white-space:pre-line;font-size:15px">${e.msg}</p>${S.pop.length>1?`<p class="res">還有 ${S.pop.length-1} 則通知</p>`:''}${Date.now()<(S.nag||0)?'<p class="warn nagtxt">請先按「知道了」或空白鍵關閉通知，再下醫囑</p>':''}<button data-do="popok" style="width:100%;padding:12px">知道了，繼續（空白鍵）</button></div></div>`;}
  if(S.ended&&!(S.pop&&S.pop.length))h+=endHtml(); // 結局頁是畫面的一部分，每次重繪都會保留；最後的彈窗先顯示、按完才進結局
   morph($app,h);const tp=document.getElementById('top');if(tp)document.documentElement.style.setProperty('--toph',tp.offsetHeight+'px');
@@ -727,14 +751,14 @@ const $app=document.getElementById('app');
 let lastDown=0;
 function handleUI(e){
  const b=e.target.closest('[data-do]');if(!b||b.disabled)return;const a=b.dataset.a;
- ({sel:()=>S.sel=+a,bed:toBed,act:()=>doAct(a),dispo:()=>doDispo(a),rest:()=>doRest(a),reassess:doReassess,more:()=>S.more=!S.more,tab:()=>{S.tab=a},popok:popupOk,support:()=>supportCall(),bulk:()=>bulkDispo(a),share:()=>shareImage(),reviewall:()=>{S.reviewAll=!S.reviewAll},mtopen:()=>{S.mtOpen=+a},gotomt:()=>{const d=document.querySelector('.dock');if(d)d.scrollIntoView({behavior:'smooth',block:'start'})},autosel:()=>{S.autoSel=!S.autoSel;if(S.autoSel)autoSelect(true)},mt:()=>answerMini(a),gotoidle:()=>gotoIdle(),qdel:()=>{S.queue.splice(+a,1)},quiz:()=>quizAnswer(+a),resume:()=>{S.autoPaused=false;const sp=S.hold&&S.hold.speed;S.hold=null;S.speed=sp||S.resume||1},speed:()=>{if(S.speed)S.resume=S.speed;S.autoPaused=false;S.hold=null;S.speed=+a},start:()=>start(+a),again:()=>{newGame();intro()}})[b.dataset.do]?.();
+ ({sel:()=>S.sel=+a,bed:toBed,act:()=>doAct(a),dispo:()=>doDispo(a),rest:()=>doRest(a),reassess:doReassess,more:()=>S.more=!S.more,tab:()=>{S.tab=a},popok:popupOk,support:()=>supportCall(),bulk:()=>bulkDispo(a),share:()=>shareImage(),reviewall:()=>{S.reviewAll=!S.reviewAll},mtopen:()=>{S.mtOpen=+a},gotomt:()=>{const d=document.querySelector('.plobby');if(d)d.scrollIntoView({behavior:'smooth',block:'start'})},autosel:()=>{S.autoSel=!S.autoSel;if(S.autoSel)autoSelect(true)},mt:()=>answerMini(a),gotoidle:()=>gotoIdle(),qdel:()=>{S.queue.splice(+a,1)},quiz:()=>quizAnswer(+a),resume:()=>{S.autoPaused=false;const sp=S.hold&&S.hold.speed;S.hold=null;S.speed=sp||S.resume||1},speed:()=>{if(S.speed)S.resume=S.speed;S.autoPaused=false;S.hold=null;S.speed=+a},start:()=>start(+a),again:()=>{newGame();intro()}})[b.dataset.do]?.();
  render();
 }
 document.addEventListener('pointerdown',e=>{lastDown=Date.now();handleUI(e);});
 document.addEventListener('click',e=>{if(Date.now()-lastDown<700)return;handleUI(e);});
 document.addEventListener('contextmenu',e=>{const b=e.target.closest('[data-do=act]');if(!b||!S.started)return;e.preventDefault();if(b.disabled)return;doAct(b.dataset.a,true);render();});
 // 中文輸入法開啟時 e.key 會變成 "Process"，改用實體按鍵代碼 e.code 判斷
-function keyOf(e){const c=e.code||'';let m;if(c==='Space')return ' ';if(c==='Enter'||c==='NumpadEnter')return 'Enter';
+function keyOf(e){const c=e.code||'';let m;if(c==='Space')return ' ';if(c==='Comma')return ',';if(c==='Period')return '.';if(c==='Minus')return '-';if(c==='Enter'||c==='NumpadEnter')return 'Enter';
  if((m=c.match(/^(?:Digit|Numpad)(\d)$/)))return m[1];if((m=c.match(/^Key([A-Z])$/)))return m[1].toLowerCase();return e.key;}
 function nag(){S.nag=Date.now()+1400;setTimeout(render,1500);}
 document.addEventListener('keydown',e=>{
@@ -789,7 +813,7 @@ function sceneHtml(){
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function savedName(){try{return localStorage.getItem('er24hr_name')||''}catch(e){return ''}}
 const nm=()=>S.player?esc(S.player)+' 醫師':'醫師';
-const VERSION='2026-11-05 r16';
+const VERSION='2026-11-05 r17';
 function intro(){S.started=false;
  const stars=n=>'●'.repeat(n)+'○'.repeat(6-n);
  $app.innerHTML=`<div class="overlay intro">
@@ -802,10 +826,10 @@ function intro(){S.started=false;
   <div class="ihead">選擇你的職級（難度）</div>
   <div class="ilv">${LEVELS.map((l,i)=>`<button data-do="start" data-a="${i}" class="lvbtn lv${i}"><div class="lvn"><b>${l.n}</b><span class="lvd">${stars(i+1)}</span></div><div class="lvt">${l.desc}</div></button>`).join('')}</div>
   <details class="irules"><summary>📖 遊戲說明（第一次玩請看）</summary>
-  <p><b>病人分兩類：</b>外傷／非外傷。每個人有檢傷級（TTAS 1 復甦急救 ～ 5 非緊急）和隱藏的嚴重度（輕／中／重）。護理師有時會評錯檢傷級，用「重新檢傷」確認真實狀況。</p>
-  <p><b>六大急症</b>（OHCA、急性冠心症、腦中風、敗血症、重大外傷、呼吸衰竭）由救護車直送，有黃金時間：例如 ACS 10 分鐘內 ECG、腦中風 25 分鐘內 CT、敗血症 1 小時內抗生素、OHCA 5 分鐘內 CPR。下單即算達標，達標加分。</p>
-  <p>流程：送進診間 → 穩定生命徵象 → 檢查／治療／會診 → 收住院或回家。<br>亂開不必要的處置扣分；會診要等檢查結果；tPA 要先做 CT；體力低於 30 會開錯醫囑。</p>
-  <p><b>結局：</b>分數達到通關分數就提早下班通關；死亡人數太多（PGY 6 人、R1／R2 5 人、R3 以上 4 人）就被開除；撐滿 24 小時沒達標則是平安下班，依分數評等。</p>
+  <p><b>病人分兩類：</b>外傷／非外傷。每個人有檢傷級（TTAS 1 復甦急救 ～ 5 非緊急）和隱藏的嚴重度（輕／中／重）。護理師有時會評錯檢傷級，用「再評估」重新測量生命徵象、疼痛與意識，依新資料更新檢傷。</p>
+  <p><b>六大急症</b>（OHCA、急性冠心症、腦中風、敗血症、重大外傷、呼吸衰竭）由救護車直送，有黃金時間：例如 ACS 10 分鐘內 ECG、腦中風 25 分鐘內 CT、敗血症 1 小時內抗生素、OHCA 到院立刻 CPR（1 分鐘內開始），並依心律儘速電擊。黃金時間以「開始執行」的時間計算，達標加分。</p>
+  <p>流程：送進診間 → 穩定生命徵象 → 檢查／治療／會診 → 收住院或回家。<br>亂開不必要的處置扣分；會診要等檢查結果；tPA 要先做 CT；體力低於 30 動作會變慢（處置時間變長）。</p>
+  <p><b>結局：</b>撐滿 24 小時且分數達標即通關；「可避免」的死亡累積太多（PGY 6、R1／R2 5、R3 以上 4）會被開除。已給予適當處置仍救不回的重症屬於不可避免，不計入。依分數評等。</p>
   <p><b>速度：</b>1× 約 1 秒＝遊戲 1 分鐘；進入遊戲後先暫停，準備好再按「開始值班」；每次彈窗關閉後有 3 秒緩衝才繼續計時。</p>
   <p><b>快捷鍵：</b>1-8 選床位、Enter 送進診間、空白鍵暫停／繼續、Shift+1/2/4 切速度、字母下醫囑（按鈕上有標示）。<br><b>醫囑佇列：</b>醫師忙碌時再下醫囑會自動排隊（最多 3 筆），做完自動接下一筆；Shift+字母或對按鈕按右鍵可插隊；前置條件不符的會被取消。</p></details>
   <div class="ver">版本 ${VERSION}（若畫面和說明不符，請按 Ctrl+F5 重新整理）</div>
@@ -822,20 +846,25 @@ function start(i){const lv=LEVELS[i];S.lv=lv;
  S.sched.sort((x,y)=>x.t-y.t);
  log('📋 候診區有 1 位病人，接下來會陸續有人來，先熟悉一下環境。','y');}
 // 依主訴置頂最相關的處置（症狀導向的第一線處置，不等於答案，仍可能含不需要的項目）
-const PINS=[[/無呼吸|無脈搏|心跳停止|PEA/,['CPR/電擊','插管','抽血','心臟科會診'],1],
+const PINS=[[/氣管偏移|頸靜脈/,['針刺減壓','穩定生命徵象','胸管'],1],
+ [/室顫|VF/,['CPR','電擊','插管','抽血'],1],
+ [/無呼吸|無脈搏|心跳停止|PEA/,['CPR','插管','抽血','心臟科會診'],1],
  [/發紺/,['插管','噴霧治療','X光','抽血'],1],
  [/起疹|過敏|喘鳴/,['腎上腺素','輸液','噴霧治療','觀察30分'],1],
  [/胸痛|冠心症|心悸|冷汗/,['ECG','抽血','阿斯匹靈','心臟科會診','輸液']],
- [/喘|呼吸|氣胸|喉嚨緊/,['X光','噴霧治療','抽血','腎上腺素','插管']],
+ [/撞擊|氣胸|呼吸音減弱/,['穩定生命徵象','FAST超音波','X光','胸管','止痛']],
+ [/喘|呼吸|氣胸|喉嚨緊/,['X光','噴霧治療','抽血','插管']],
  [/無力|口齒|抽搐|頭痛|頭暈|意識|撞到頭/,['CT','抽血','神經科會診','ECG','觀察30分']],
  [/發燒|咳嗽|敗血/,['抽血','抗生素','X光','輸液','尿液檢查']],
  [/腹|拉肚子|嘔吐|血尿|腰痛|小便/,['抽血','CT','止痛','輸液','尿液檢查']],
- [/刺傷|車禍|高速|流血|割傷|咬傷/,['FAST超音波','止血加壓','縫合','輸血','外科會診']],
- [/骨折|扭傷|跌倒|髖|變形|撞擊/,['X光','止痛','夾板固定','外科會診','CT']],
+ [/割傷|咬傷/,['止血加壓','神經血管評估','縫合','抗生素','衛教／追蹤']],
+ [/刺傷|高速|多處外傷|流血/,['FAST超音波','止血加壓','輸血','外科會診']],
+ [/擦挫|擦撞/,['X光','止痛','衛教／追蹤']],
+ [/骨折|扭傷|跌倒|髖|變形/,['X光','止痛','夾板固定','神經血管評估','衛教／追蹤']],
  [/燙傷/,['止痛','輸液','抗生素']]];
-const ruleOf=p=>PINS.find(([r])=>r.test(p.cs.c+p.cs.v));
+const ruleOf=p=>S.lv.hint>=1?PINS.find(([r])=>r.test(p.cs.c+p.cs.v)):null; // 評量模式（R2 以上）不提供答案式推薦
 const leadOf=p=>{const r=ruleOf(p);return r&&r[2]?r[1][0]:null;}; // 特效藥優先（例如過敏性休克 → 腎上腺素）
-function pinFor(p){const g=p.cs.gold&&S.lv.hint>=1?[p.cs.gold.a]:[];
+function pinFor(p){if(S.lv.hint<1)return [];const g=p.cs.gold&&S.lv.hint>=1?[p.cs.gold.a]:[];
  const r=ruleOf(p),base=r?r[1]:['抽血','X光','輸液','止痛','觀察30分'];
  const first=((p.cs.six&&S.lv.hint>=1)||p.shown<=2)?['穩定生命徵象']:[];
  const lead=leadOf(p)?[base[0]]:[];
@@ -859,7 +888,7 @@ function titlesHtml(){const t=[],ob=S.overBy||{};
  if((S.mtBad||0)>=2||(S.mtMiss||0)>=3)t.push('😤 家屬殺手');
  if((S.coffee||0)>=4)t.push('☕ 咖啡成癮');
  if((S.naps||0)>=2)t.push('😴 值班小睡王');
- if((A['CPR/電擊']||0)>=3)t.push('⚡ 電擊狂人');
+ if((A['電擊']||0)>=3)t.push('⚡ 電擊狂人');
  if(S.lwbs>=5)t.push('🚶 候診區送客王');
  if(S.bad>=3)t.push('📉 糾紛製造機');
  S.endTitles=t.slice(0,8);
@@ -868,7 +897,7 @@ function reviewHtml(){const rows=[...S.review];
  for(const p of S.pts){record(p,'⏳','下班時仍在急診，尚未處置完');rows.push(S.review.pop());}
  const key=r=>r.icon==='💀'||/錯過黃金時間/.test(r.detail||''),all=!!S.reviewAll,main=all?rows:rows.filter(key),rest=rows.filter(r=>!key(r));
  const cnt={};rest.forEach(r=>cnt[r.icon]=(cnt[r.icon]||0)+1);
- const row=r=>`<div style="padding:5px 0;border-bottom:1px solid #223046;font-size:13px"><b>${r.icon} ${r.name} ${r.age}歲・${r.dx}</b><div class="res">${r.res}${r.detail?'<br>'+r.detail:''}</div></div>`;
+ const row=r=>`<div style="padding:5px 0;border-bottom:1px solid #223046;font-size:13px"><b>${r.icon} ${r.name} ${r.age}歲・${r.dx}</b><div class="res">${r.res}${r.detail?'<br>'+r.detail:''}${r.clue?'<br>💡 '+r.clue:''}</div></div>`;
  return `<div style="text-align:left;margin:10px 0"><b>逐位病人回顧（共 ${rows.length} 位）</b>
  <div class="res" style="margin:4px 0">${all?'顯示全部':'只列出死亡與錯過黃金時間的病人'}${!all&&rest.length?`｜其他 ${rest.length} 位：${Object.entries(cnt).map(([i,n])=>`${i} ${n}`).join('　')}`:''}</div>
  <div style="max-height:240px;overflow:auto">${main.map(row).join('')||'<div class="res">沒有死亡或錯過黃金時間的病人 👍</div>'}</div>
@@ -882,8 +911,8 @@ function compareHtml(){const tot=S.nid-1,ok=(v,i)=>v<=i?'g':'b';
  return `<table class="cmp"><tr><th>項目</th><th>你這班</th><th>理想</th></tr>
  ${row('救回病人',`${S.saved} / ${tot}`,`${tot} / ${tot}`,S.saved>=tot?'g':'b')}${row('死亡',S.died,0,ok(S.died,0))}${row('跑掉',S.lwbs,0,ok(S.lwbs,0))}${row('處置糾紛',S.bad,0,ok(S.bad,0))}${row('過度處置',S.over,0,ok(S.over,0))}${row('黃金時間達標',`${S.sixHit} / ${S.sixSeen}`,`${S.sixSeen} / ${S.sixSeen}`,S.sixSeen&&S.sixHit>=S.sixSeen?'g':'b')}</table>`;}
 function endHtml(){const r=S.lv.rate;const g=S.score>=700*r?['S','急診之神']:S.score>=450*r?['A','資深主治等級']:S.score>=250*r?['B','堪用的住院醫師']:S.score>=100*r?['C','還在適應中']:['D','建議先去睡一覺'];
- const R=S.result,title=R==='fired'?`🔥 ${nm()}，你被開除了（${S.lv.n}）`:R==='clear'?`🏆 通關！${nm()}提早 ${hh(S.t)} 下班（${S.lv.n}）`:`🌅 ${nm()}，08:00 下班（${S.lv.n}）`;
- const sub=R==='fired'?`<p class="warn" style="font-size:16px">${S.died} 位病人死亡，院方決定請你離開。</p>`:R==='clear'?`<p style="color:var(--ok);font-size:16px">分數達到 ${goal()}，表現優異！</p>`:`<p class="res" style="font-size:15px">撐完 24 小時，但沒達到通關分數 ${goal()}。</p>`;
+ const R=S.result,title=R==='fired'?`🔥 ${nm()}，你被開除了（${S.lv.n}）`:R==='clear'?`🏆 通關！${nm()}撐完 24 小時且達標（${S.lv.n}）`:`🌅 ${nm()}，08:00 下班（${S.lv.n}）`;
+ const sub=R==='fired'?`<p class="warn" style="font-size:16px">可避免的死亡達 ${S.avoid} 位（共 ${S.died} 位病人死亡），院方決定請你離開。</p>`:R==='clear'?`<p style="color:var(--ok);font-size:16px">撐滿 24 小時，分數 ${S.score} 達到通關分數 ${goal()}。</p>`:`<p class="res" style="font-size:15px">撐完 24 小時，但沒達到通關分數 ${goal()}。</p>`;
  S.endInfo={g:R==='fired'?'F':g[0],gn:R==='fired'?'建議轉換跑道':g[1],title};
  return `<div class="overlay"><div class="box"><h1>${title}</h1>${sub}<div class="big" style="color:var(--ac)">${R==='fired'?'F':g[0]}</div><p style="font-size:16px">${R==='fired'?'建議轉換跑道':g[1]}（${S.score} 分）</p>
  <p>救回 ${S.saved}　死亡 ${S.died}　跑掉 ${S.lwbs}　糾紛 ${S.bad}<br>六大急症 ${S.sixSeen} 人，黃金時間達標 ${S.sixHit} 次<br>過度醫療 ${S.over} 次　不必要住院 ${S.overAdm}　近期滿意度 ${avgSat().toFixed(0)}</p>
@@ -891,7 +920,7 @@ function endHtml(){const r=S.lv.rate;const g=S.score>=700*r?['S','急診之神']
 function supportCall(){if(S.supportUsed)return;S.supportUsed=true;S.support={until:S.t+30};S.st=Math.min(100,S.st+30);
  S.pts.forEach(q=>{if(q.loc!=null)q.hp=Math.min(100,q.hp+20);});log('🆘 已請求院內支援：30 分鐘內新病人減少，診間病人恢復，體力回復','g');badge('支援抵達！30 分鐘內病人湧入減少','ok',3500);}
 const readyPts=()=>S.pts.filter(q=>q.loc!=null&&allDone(q)&&!q.pend.length);
-function bulkDispo(kind){if(S.task)return busyToast();const l=readyPts();if(!l.length)return toast('目前沒有已處置完成的病人');
+function bulkDispo(kind){if(S.task)return busyToast();const l=readyPts().filter(q=>!S.mt.some(t=>t.pid===q.id&&t.type==='consent'));if(!l.length)return toast('目前沒有可批次辦理的病人（可能有待簽同意書）');
  S.task={pid:null,a:'批次辦理離院',left:Math.max(1,l.length)};l.forEach(q=>{q.fate=null;dispo(q,kind);});}
 function shareImage(){const c=document.createElement('canvas');c.width=1080;c.height=1350;const x=c.getContext('2d');
  const g=x.createLinearGradient(0,0,0,1350);g.addColorStop(0,'#050b16');g.addColorStop(1,'#1d3a5c');x.fillStyle=g;x.fillRect(0,0,1080,1350);
