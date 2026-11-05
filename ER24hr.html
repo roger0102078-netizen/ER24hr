@@ -205,6 +205,9 @@ button.hi{border-color:#f5c518!important;background:#3a3216!important;box-shadow
 .mtbox{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
 .mtbox .mth{cursor:pointer}
 button.pill{background:#4a3a10;border-color:var(--t3);color:#ffe9a8;font-weight:700}
+button.sos{background:#7a1f24;border-color:#ff5d5d;color:#fff;font-weight:700;animation:blink 1s infinite}
+.best{margin:8px 0;padding:8px 10px;border-radius:8px;background:#10281b;border:1px solid #1d5a3a;color:#bff3d6;font-size:13.5px;text-align:left}
+.cmp{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}.cmp td,.cmp th{padding:3px 6px;border-bottom:1px solid #223046;text-align:left}.cmp th{color:var(--mut);font-weight:600}.cmp .g{color:var(--ok)}.cmp .b{color:#ff9a9a}
 </style>
 </head>
 <body>
@@ -312,7 +315,7 @@ let S, timer;
 
 function newGame(){S={t:0,speed:1,pts:[],nid:1,beds:Array(NB).fill(null),task:null,sel:null,st:100,log:[],
  saved:0,died:0,lwbs:0,bad:0,over:0,overAdm:0,sats:[],score:0,sixHit:0,sixMiss:0,sixSeen:0,
- mcis:[],lv:LEVELS[3],ended:false,started:false,review:[],satE:90,recent:[],ghosts:[],queue:[],overBy:{},epiOk:0,epiBad:0,sched:[],badges:[],mt:[],mtid:1,autoSel:false,mtOk:0,mtBad:0,mtMiss:0};}
+ mcis:[],lv:LEVELS[3],ended:false,started:false,review:[],satE:90,recent:[],ghosts:[],queue:[],overBy:{},acts:{},coffee:0,naps:0,minSt:100,support:null,supportUsed:false,supportOffered:false,epiOk:0,epiBad:0,sched:[],badges:[],mt:[],mtid:1,autoSel:false,mtOk:0,mtBad:0,mtMiss:0};}
 const byId=id=>S.pts.find(p=>p.id===id);
 const has=(p,a)=>p.done.includes(a)||p.pend.some(x=>x.a===a);
 const allDone=p=>p.cs.need.every(n=>p.done.includes(n));
@@ -358,7 +361,7 @@ function deathReason(p){const r=[],miss=p.cs.need.filter(n=>!p.done.includes(n))
 function record(p,icon,res){const need=p.cs.need,miss=need.filter(n=>!p.done.includes(n)),extra=p.done.filter(a=>a!=='穩定生命徵象'&&!need.includes(a)),d=[];
  if(miss.length)d.push('缺少：'+miss.join('、'));if(extra.length)d.push('多餘處置：'+extra.join('、'));
  if(p.goldRes==='hit')d.push('黃金時間達標');if(p.goldRes==='miss')d.push(`錯過黃金時間（${p.cs.gold.a}）`);
- S.review.push({icon,name:p.name,age:p.age,dx:p.cs.dx,res,detail:d.join('；')});}
+ S.review.push({icon,name:p.name,age:p.age,dx:p.cs.dx,res,detail:d.join('；'),tt:p.tt,elapsed:S.t-p.arr,gh:p.goldRes==='hit',ga:p.goldAt,gn:p.cs.gold&&p.cs.gold.a});}
 // 等結果期間的小任務：家屬詢問、確認過敏史、簽同意書…（不占醫師時間，答對加分、答錯／沒理會會讓病人不滿）
 const procOf=p=>['輸血','tPA','縫合','胸管'].find(n=>p.cs.need.includes(n))||'住院';
 const MT={
@@ -403,15 +406,16 @@ function missGold(p){if(p.cs.gold&&!p.goldDone){p.goldDone=true;p.goldRes='miss'
 function tick(){
  if(S.ended)return;S.t++;
  const h=((480+S.t)/60)%24;
- const rate=(h>=8&&h<17?1/20:h>=17&&h<22?1/14:(h>=22||h<4)?1/22:1/30)*S.lv.rate*ARRIVE*(S.t<30?.5:1);
+ const rate=(h>=8&&h<17?1/20:h>=17&&h<22?1/14:(h>=22||h<4)?1/22:1/30)*S.lv.rate*ARRIVE*(S.t<30?.5:1)*((S.support&&S.t<S.support.until)?.3:1);
  while(S.sched&&S.sched.length&&S.sched[0].t<=S.t){const it=S.sched.shift();spawn(it.c,0,1);}
  if(Math.random()<rate)spawn();
  const lobN=S.pts.filter(q=>q.loc==null).length,cong=S.beds.every(Boolean)&&lobN>=4;
- if(cong&&S.t-(S.lastCong??-999)>90){S.lastCong=S.t;log(`🏥 急診壅塞！病床全滿，候診區已有 ${lobN} 人。`,'r');popup('🏥','急診壅塞！',`病床全滿、候診區 ${lobN} 人。盡快替處置完成的病人辦理住院或出院，騰出床位；壅塞時候診病人滿意度會掉更快。`,'y');}
+ if(cong&&S.t-(S.lastCong??-999)>90){S.lastCong=S.t;log(`🏥 急診壅塞！病床全滿，候診區已有 ${lobN} 人。`,'r');popup('🏥','急診壅塞！',`病床全滿、候診區 ${lobN} 人。盡快替處置完成的病人辦理住院或出院，騰出床位；頂部有「全部回家／全部住院」可批次辦理（選錯會被扣分）。壅塞時候診病人滿意度會掉更快。`,'y');}
  if(S.mcis.length&&S.t>=S.mcis[0]){S.mcis.shift();mci();}
- S.st=Math.max(0,S.st-(0.03+(S.task?0.1:0))*S.lv.sd);
+ S.st=Math.max(0,S.st-(0.03+(S.task?0.1:0))*S.lv.sd);S.minSt=Math.min(S.minSt??100,S.st);
  if(S.task&&--S.task.left<=0)finish();
  nextQueued();
+ if(!S.supportOffered&&!S.supportUsed&&(S.died>=FIRE[S.lv.k]-1||S.score<=-80)){S.supportOffered=true;popup('🆘','快撐不住了嗎？','你已經接近被開除，或分數很低。畫面上方出現了「🆘 請求支援」按鈕（整班限用 1 次）：30 分鐘內新病人減少，診間病人恢復一些，體力回復。','y');}
  {const bad=S.died+S.bad+S.lwbs;if(bad>(S.lastBadSum||0)){S.lastBadSum=bad;S.combo=0;}}
  autoSelect();
  maybeMiniTask();
@@ -445,8 +449,8 @@ const avgSat=()=>S.satE??90; // 先驗 5 位滿意的病人，避免開局一兩
 
 function finish(){
  const {pid,a}=S.task;S.task=null;
- if(a==='咖啡'){S.st=Math.min(100,S.st+12);return}
- if(a==='小睡'){S.st=Math.min(100,S.st+35);log('😴 小睡醒來，精神好多了','g');return}
+ if(a==='咖啡'){S.coffee++;S.st=Math.min(100,S.st+12);return}
+ if(a==='小睡'){S.naps++;S.st=Math.min(100,S.st+35);log('😴 小睡醒來，精神好多了','g');return}
  const p=byId(pid);if(!p)return;
  if(a==='__reassess'){p.known=true;const mis=p.shown!==p.tt;
   log(`🔍 重新檢傷 ${p.name}：${p.tt} 級（${TRI[p.tt]}）、嚴重度${SEV[p.sev-1]}${mis?`，護理師原本評成 ${p.shown} 級！`:''}`,mis||p.sev===3?'y':'');p.shown=p.tt;return}
@@ -456,11 +460,12 @@ function finish(){
  if(req&&!req.every(n=>p.done.includes(n))){log(A.c?`📞 ${a}：「檢查結果呢？先做完檢查再 call 我」（${p.name}）`:`⛔ ${p.name}：「${a}」之前必須先完成 ${req.join('、')}`,'y');return}
  if(S.st<30&&Math.random()<(S.st<15?.4:.2)){log(`😵 太累了，${p.name} 的「${a}」醫囑開錯，白做了`,'r');return}
  if(p.cs.gold&&p.cs.gold.a===a&&!p.goldDone){p.goldDone=true;
-  if(S.t-p.arr<=p.cs.gold.m){p.goldRes='hit';S.streak=(S.streak||0)+1;if(S.streak===3)badge('黃金時間連續 3 次達標！');S.sixHit++;S.score+=10;log(`🏅 ${p.name}（${p.cs.dx}）${a}達標：${S.t-p.arr} 分鐘（目標 ${p.cs.gold.m} 分內）+10`,'g');}
+  if(S.t-p.arr<=p.cs.gold.m){p.goldRes='hit';p.goldAt=S.t-p.arr;S.streak=(S.streak||0)+1;if(S.streak===3)badge('黃金時間連續 3 次達標！');S.sixHit++;S.score+=10;log(`🏅 ${p.name}（${p.cs.dx}）${a}達標：${S.t-p.arr} 分鐘（目標 ${p.cs.gold.m} 分內）+10`,'g');}
   else{p.goldRes='miss';S.streak=0;S.sixMiss++;log(`⏱ ${p.name}（${p.cs.dx}）${a}超過黃金時間（${S.t-p.arr} 分鐘）`,'y');}}
  if(a==='tPA'&&!need.includes('tPA')){p.hp-=40;log(`⚠ ${p.name} 不適合血栓溶解卻打了 tPA，出血惡化！`,'r');popup('⚠','用藥失誤',`${p.name} 不適合血栓溶解卻打了 tPA，出血惡化！`);}
  if(A.stab&&(a==='穩定生命徵象'||need.includes(a))){p.stab=true;log(`🫁 ${p.name} 生命徵象已穩定`,'g');}
  if(a==='穩定生命徵象'){return}
+ S.acts[a]=(S.acts[a]||0)+1;
  if(!need.includes(a)){S.over++;S.overBy[a]=(S.overBy[a]||0)+1;}
  if(!A.w&&!A.c){ // 立即生效的治療：給病人反應回饋
   if(need.includes(a)){p.hp=Math.min(100,p.hp+8);p.fx=['up','↑ 改善',Date.now()+2600];setTimeout(render,2700);log(`💚 ${p.name} 接受「${a}」後有明顯改善`,'g');}
@@ -651,7 +656,7 @@ function render(){
   <div class="stat"><small>分數／通關 ${goal()}</small><b>${S.score}</b>${bar(Math.max(0,S.score)/Math.max(1,goal())*100,'var(--ac)')}</div>
   <div class="stat" style="flex:1;min-width:220px"><small>醫師目前</small><b class="${idleNow()?'idle':''}">${taskText()}</b>${S.queue.length?`<div class="qline">下一個：${S.queue.map((x,i)=>`<span class="qi">${qLabel(x)}<button class="qx" data-do="qdel" data-a="${i}" title="取消">✕</button></span>`).join('')}</div>`:''}</div>
   <div>${[[0,'⏸ 暫停'],[1,'▶ 1×'],[2,'2×'],[4,'4×']].map(([v,t])=>`<button data-do="speed" data-a="${v}" class="${S.speed===v?'on':''}">${t}</button>`).join(' ')}</div>
-  <div>${S.mt&&S.mt.length?`<button data-do="gotomt" class="pill">📋 待辦 ${S.mt.length}</button> `:''}<button data-do="autosel" class="${S.autoSel?'on':''}" title="醫師閒下來時，自動幫你選到最緊急的病人">🎯 自動選最緊急：${S.autoSel?'開':'關'}</button> <button data-do="rest" data-a="咖啡" ${S.task?'class="dim"':''}>☕ 咖啡 +12</button> <button data-do="rest" data-a="小睡" ${S.task?'class="dim"':''}>😴 小睡20分 +35</button></div></div>`;
+  <div>${S.mt&&S.mt.length?`<button data-do="gotomt" class="pill">📋 待辦 ${S.mt.length}</button> `:''}${!S.supportUsed&&(S.died>=FIRE[S.lv.k]-1||S.score<=-80)?`<button data-do="support" class="sos">🆘 請求支援（限 1 次）</button> `:''}${readyPts().length>=2?`<button data-do="bulk" data-a="home" class="pill">🏠 全部回家 (${readyPts().length})</button> <button data-do="bulk" data-a="admit" class="pill">🏥 全部住院 (${readyPts().length})</button> `:''}<button data-do="autosel" class="${S.autoSel?'on':''}" title="醫師閒下來時，自動幫你選到最緊急的病人">🎯 自動選最緊急：${S.autoSel?'開':'關'}</button> <button data-do="rest" data-a="咖啡" ${S.task?'class="dim"':''}>☕ 咖啡 +12</button> <button data-do="rest" data-a="小睡" ${S.task?'class="dim"':''}>😴 小睡20分 +35</button></div></div>`;
  if(!S.ended&&S.hold&&S.speed===0&&!(S.pop&&S.pop.length))h+=S.hold.kind==='start'?`<div id="veil"><span class="vt">🏥 準備好就開始值班</span><span class="vs">先看一下候診區和診間，時間還沒開始走</span><button data-do="resume">▶ 開始值班（空白鍵）</button></div>`:`<div id="veil"><span class="vt">⏳ ${S.hold.left} 秒後繼續</span><span class="vs">給你一點反應時間</span><button data-do="resume">立即繼續</button></div>`;
  else if(!S.ended&&S.speed===0&&!(S.pop&&S.pop.length))h+=`<div id="veil"><span class="vt">⏸ 已暫停</span><span class="vs">${S.autoPaused?'分頁離開，已自動暫停・':''}仍可下醫囑，繼續後才會執行</span><button data-do="resume">▶ 繼續（空白鍵）</button></div>`;
  h+=`<div id="bedbar">${S.beds.map((id,i)=>{const q=id&&byId(id);return q?`<div class="chip ${q.id===S.sel?'sel':''} ${q.hp<35?'crit':''} ${q.fresh||flashing(q)?'fresh':''}" data-do="sel" data-a="${q.id}"><span class="tri t${q.shown}">${q.shown}</span><div><b>${i+1}·${q.name} ${ydot(q)}</b>${bar(q.hp,hpc(q.hp))}</div></div>`:`<div class="chip empty">${i+1}·空</div>`}).join('')}</div>
@@ -722,7 +727,7 @@ const $app=document.getElementById('app');
 let lastDown=0;
 function handleUI(e){
  const b=e.target.closest('[data-do]');if(!b||b.disabled)return;const a=b.dataset.a;
- ({sel:()=>S.sel=+a,bed:toBed,act:()=>doAct(a),dispo:()=>doDispo(a),rest:()=>doRest(a),reassess:doReassess,more:()=>S.more=!S.more,tab:()=>{S.tab=a},popok:popupOk,reviewall:()=>{S.reviewAll=!S.reviewAll},mtopen:()=>{S.mtOpen=+a},gotomt:()=>{const d=document.querySelector('.dock');if(d)d.scrollIntoView({behavior:'smooth',block:'start'})},autosel:()=>{S.autoSel=!S.autoSel;if(S.autoSel)autoSelect(true)},mt:()=>answerMini(a),gotoidle:()=>gotoIdle(),qdel:()=>{S.queue.splice(+a,1)},quiz:()=>quizAnswer(+a),resume:()=>{S.autoPaused=false;const sp=S.hold&&S.hold.speed;S.hold=null;S.speed=sp||S.resume||1},speed:()=>{if(S.speed)S.resume=S.speed;S.autoPaused=false;S.hold=null;S.speed=+a},start:()=>start(+a),again:()=>{newGame();intro()}})[b.dataset.do]?.();
+ ({sel:()=>S.sel=+a,bed:toBed,act:()=>doAct(a),dispo:()=>doDispo(a),rest:()=>doRest(a),reassess:doReassess,more:()=>S.more=!S.more,tab:()=>{S.tab=a},popok:popupOk,support:()=>supportCall(),bulk:()=>bulkDispo(a),share:()=>shareImage(),reviewall:()=>{S.reviewAll=!S.reviewAll},mtopen:()=>{S.mtOpen=+a},gotomt:()=>{const d=document.querySelector('.dock');if(d)d.scrollIntoView({behavior:'smooth',block:'start'})},autosel:()=>{S.autoSel=!S.autoSel;if(S.autoSel)autoSelect(true)},mt:()=>answerMini(a),gotoidle:()=>gotoIdle(),qdel:()=>{S.queue.splice(+a,1)},quiz:()=>quizAnswer(+a),resume:()=>{S.autoPaused=false;const sp=S.hold&&S.hold.speed;S.hold=null;S.speed=sp||S.resume||1},speed:()=>{if(S.speed)S.resume=S.speed;S.autoPaused=false;S.hold=null;S.speed=+a},start:()=>start(+a),again:()=>{newGame();intro()}})[b.dataset.do]?.();
  render();
 }
 document.addEventListener('pointerdown',e=>{lastDown=Date.now();handleUI(e);});
@@ -784,7 +789,7 @@ function sceneHtml(){
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function savedName(){try{return localStorage.getItem('er24hr_name')||''}catch(e){return ''}}
 const nm=()=>S.player?esc(S.player)+' 醫師':'醫師';
-const VERSION='2026-11-05 r15';
+const VERSION='2026-11-05 r16';
 function intro(){S.started=false;
  const stars=n=>'●'.repeat(n)+'○'.repeat(6-n);
  $app.innerHTML=`<div class="overlay intro">
@@ -848,7 +853,17 @@ function titlesHtml(){const t=[],ob=S.overBy||{};
  if(avgSat()>=80)t.push('😊 病人最愛');
  if(S.saved>=15)t.push('🏥 急診主力');
  if((S.mtOk||0)>=3&&!S.mtBad)t.push('🗣️ 溝通高手');
- return t.length?`<div style="margin:8px 0"><b>本班稱號</b><div>${t.slice(0,6).map(x=>`<span class="ttl">${x}</span>`).join('')}</div></div>`:'';}
+ const A=S.acts||{},n=Object.values(A).reduce((a,b)=>a+b,0);
+ if((A['止痛']||0)>=6&&(A['止痛']||0)/Math.max(1,n)>=.25)t.push('💊 只會開止痛');
+ if((S.minSt??100)<10)t.push('😵 爆肝值班');
+ if((S.mtBad||0)>=2||(S.mtMiss||0)>=3)t.push('😤 家屬殺手');
+ if((S.coffee||0)>=4)t.push('☕ 咖啡成癮');
+ if((S.naps||0)>=2)t.push('😴 值班小睡王');
+ if((A['CPR/電擊']||0)>=3)t.push('⚡ 電擊狂人');
+ if(S.lwbs>=5)t.push('🚶 候診區送客王');
+ if(S.bad>=3)t.push('📉 糾紛製造機');
+ S.endTitles=t.slice(0,8);
+ return t.length?`<div style="margin:8px 0"><b>本班稱號</b><div>${S.endTitles.map(x=>`<span class="ttl">${x}</span>`).join('')}</div></div>`:'';}
 function reviewHtml(){const rows=[...S.review];
  for(const p of S.pts){record(p,'⏳','下班時仍在急診，尚未處置完');rows.push(S.review.pop());}
  const key=r=>r.icon==='💀'||/錯過黃金時間/.test(r.detail||''),all=!!S.reviewAll,main=all?rows:rows.filter(key),rest=rows.filter(r=>!key(r));
@@ -858,12 +873,40 @@ function reviewHtml(){const rows=[...S.review];
  <div class="res" style="margin:4px 0">${all?'顯示全部':'只列出死亡與錯過黃金時間的病人'}${!all&&rest.length?`｜其他 ${rest.length} 位：${Object.entries(cnt).map(([i,n])=>`${i} ${n}`).join('　')}`:''}</div>
  <div style="max-height:240px;overflow:auto">${main.map(row).join('')||'<div class="res">沒有死亡或錯過黃金時間的病人 👍</div>'}</div>
  ${rows.length>main.length||all?`<button data-do="reviewall" style="margin-top:6px;font-size:12px">${all?'只看重點':'展開全部 '+rows.length+' 位'}</button>`:''}</div>`;}
+function bestHtml(){const rows=S.review.filter(r=>r.icon==='✅');S.endBest=null;if(!rows.length)return '';
+ const b=[...rows].sort((a,c)=>(c.gh?1:0)-(a.gh?1:0)||a.tt-c.tt||a.elapsed-c.elapsed)[0];
+ S.endBest=b.gh?`${b.dx}（${b.name}）${b.ga} 分鐘完成「${b.gn}」✅`:`${b.dx}（${b.name}）${b.elapsed} 分鐘處置完成 ✅`;
+ return `<div class="best">🌟 最佳處置：${S.endBest}</div>`;}
+function compareHtml(){const tot=S.nid-1,ok=(v,i)=>v<=i?'g':'b';
+ const row=(n,v,t,cls)=>`<tr><td>${n}</td><td class="${cls}">${v}</td><td>${t}</td></tr>`;
+ return `<table class="cmp"><tr><th>項目</th><th>你這班</th><th>理想</th></tr>
+ ${row('救回病人',`${S.saved} / ${tot}`,`${tot} / ${tot}`,S.saved>=tot?'g':'b')}${row('死亡',S.died,0,ok(S.died,0))}${row('跑掉',S.lwbs,0,ok(S.lwbs,0))}${row('處置糾紛',S.bad,0,ok(S.bad,0))}${row('過度處置',S.over,0,ok(S.over,0))}${row('黃金時間達標',`${S.sixHit} / ${S.sixSeen}`,`${S.sixSeen} / ${S.sixSeen}`,S.sixSeen&&S.sixHit>=S.sixSeen?'g':'b')}</table>`;}
 function endHtml(){const r=S.lv.rate;const g=S.score>=700*r?['S','急診之神']:S.score>=450*r?['A','資深主治等級']:S.score>=250*r?['B','堪用的住院醫師']:S.score>=100*r?['C','還在適應中']:['D','建議先去睡一覺'];
  const R=S.result,title=R==='fired'?`🔥 ${nm()}，你被開除了（${S.lv.n}）`:R==='clear'?`🏆 通關！${nm()}提早 ${hh(S.t)} 下班（${S.lv.n}）`:`🌅 ${nm()}，08:00 下班（${S.lv.n}）`;
  const sub=R==='fired'?`<p class="warn" style="font-size:16px">${S.died} 位病人死亡，院方決定請你離開。</p>`:R==='clear'?`<p style="color:var(--ok);font-size:16px">分數達到 ${goal()}，表現優異！</p>`:`<p class="res" style="font-size:15px">撐完 24 小時，但沒達到通關分數 ${goal()}。</p>`;
+ S.endInfo={g:R==='fired'?'F':g[0],gn:R==='fired'?'建議轉換跑道':g[1],title};
  return `<div class="overlay"><div class="box"><h1>${title}</h1>${sub}<div class="big" style="color:var(--ac)">${R==='fired'?'F':g[0]}</div><p style="font-size:16px">${R==='fired'?'建議轉換跑道':g[1]}（${S.score} 分）</p>
  <p>救回 ${S.saved}　死亡 ${S.died}　跑掉 ${S.lwbs}　糾紛 ${S.bad}<br>六大急症 ${S.sixSeen} 人，黃金時間達標 ${S.sixHit} 次<br>過度醫療 ${S.over} 次　不必要住院 ${S.overAdm}　近期滿意度 ${avgSat().toFixed(0)}</p>
- ${titlesHtml()}${reviewHtml()}<button data-do="again" style="width:100%;padding:12px">再值一班</button></div></div>`;}
+ ${bestHtml()}${compareHtml()}${titlesHtml()}${reviewHtml()}<div style="display:flex;gap:8px"><button data-do="share" style="flex:1;padding:12px">📷 下載成績圖片</button><button data-do="again" style="flex:1;padding:12px">再值一班</button></div></div></div>`;}
+function supportCall(){if(S.supportUsed)return;S.supportUsed=true;S.support={until:S.t+30};S.st=Math.min(100,S.st+30);
+ S.pts.forEach(q=>{if(q.loc!=null)q.hp=Math.min(100,q.hp+20);});log('🆘 已請求院內支援：30 分鐘內新病人減少，診間病人恢復，體力回復','g');badge('支援抵達！30 分鐘內病人湧入減少','ok',3500);}
+const readyPts=()=>S.pts.filter(q=>q.loc!=null&&allDone(q)&&!q.pend.length);
+function bulkDispo(kind){if(S.task)return busyToast();const l=readyPts();if(!l.length)return toast('目前沒有已處置完成的病人');
+ S.task={pid:null,a:'批次辦理離院',left:Math.max(1,l.length)};l.forEach(q=>{q.fate=null;dispo(q,kind);});}
+function shareImage(){const c=document.createElement('canvas');c.width=1080;c.height=1350;const x=c.getContext('2d');
+ const g=x.createLinearGradient(0,0,0,1350);g.addColorStop(0,'#050b16');g.addColorStop(1,'#1d3a5c');x.fillStyle=g;x.fillRect(0,0,1080,1350);
+ const info=S.endInfo||{g:'?',gn:'',title:'ER24hr'};x.textAlign='center';
+ x.fillStyle='#fff';x.font='bold 64px "Noto Sans TC","PingFang TC",sans-serif';x.fillText('🚑 ER24hr 急診值班',540,120);
+ x.fillStyle='#9fb0c3';x.font='30px "Noto Sans TC","PingFang TC",sans-serif';x.fillText(`${S.player?S.player+' 醫師・':''}${S.lv.n}`,540,175);
+ x.fillStyle='#ffe9a8';x.font='bold 44px "Noto Sans TC","PingFang TC",sans-serif';x.fillText(String(info.title).replace(/（.*）/,''),540,290);
+ x.fillStyle='#4cc2ff';x.font='bold 260px sans-serif';x.fillText(info.g,540,560);
+ x.fillStyle='#fff';x.font='bold 44px "Noto Sans TC","PingFang TC",sans-serif';x.fillText(`${info.gn}（${S.score} 分）`,540,640);
+ x.font='34px "Noto Sans TC","PingFang TC",sans-serif';x.fillStyle='#dbe6f1';
+ [`救回 ${S.saved}　死亡 ${S.died}　跑掉 ${S.lwbs}　糾紛 ${S.bad}`,`六大急症 ${S.sixSeen} 人・黃金時間達標 ${S.sixHit} 次`,`過度處置 ${S.over} 次・近期滿意度 ${avgSat().toFixed(0)}`].forEach((t,i)=>x.fillText(t,540,720+i*54));
+ x.fillStyle='#f5c518';x.font='bold 38px "Noto Sans TC","PingFang TC",sans-serif';x.fillText('本班稱號',540,930);
+ x.fillStyle='#ffe9a8';x.font='36px "Noto Sans TC","PingFang TC",sans-serif';(S.endTitles||[]).slice(0,6).forEach((t,i)=>x.fillText(t,540,985+i*52));
+ if(S.endBest){x.fillStyle='#3ecf8e';x.font='30px "Noto Sans TC","PingFang TC",sans-serif';x.fillText('🌟 '+S.endBest,540,1300);}
+ const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='ER24hr-成績.png';document.body.appendChild(a);a.click();a.remove();}
 function end(){render();}
 newGame();intro();loop();
 </script>
