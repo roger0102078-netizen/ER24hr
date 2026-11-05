@@ -172,6 +172,36 @@ button.hi{border-color:#f5c518!important;background:#3a3216!important;box-shadow
 .lvbtn:hover{transform:translateY(-2px);border-color:#fff}.lvn{display:flex;justify-content:space-between;align-items:center}.lvn b{font-size:17px}.lvd{font-size:10px;letter-spacing:1px;color:var(--t3)}.lvt{font-size:12px;color:#aebccd;margin-top:4px}
 .lv0{border-left:5px solid #3ecf8e}.lv1{border-left:5px solid #4cc2ff}.lv2{border-left:5px solid #f5c518}.lv3{border-left:5px solid #f76b15}.lv4{border-left:5px solid #e5484d}.lv5{border-left:5px solid #b44cff}
 @media(prefers-reduced-motion:reduce){.amb,.lr,.lb,.wash,.glow,.wf,.st,.iecg path{animation:none}.a1{transform:translateX(0)}.a2{display:none}}
+/* ===== 首頁 v2：左側操作面板＋右側完整建築場景（手機版：場景在上、面板在下）===== */
+.overlay.intro{display:flex;flex-direction:column;overflow:auto;padding:0;place-items:normal;background:#050b16}
+.iscene{position:relative;flex:none;height:46vh;min-height:260px;overflow:hidden}
+.iscene .scene{position:absolute;inset:0}
+.iscene .vig{background:radial-gradient(ellipse at center,transparent 55%,rgba(3,8,16,.55) 100%),linear-gradient(180deg,rgba(3,8,16,.35),transparent 25%)}
+.icap{position:absolute;left:16px;top:12px;z-index:3;color:#dfe9f5;display:flex;flex-direction:column;gap:2px;font-size:12px;text-shadow:0 1px 6px #000}.icap b{font-size:14px;letter-spacing:2px}
+.ipanel{position:relative;z-index:1;width:100%;max-width:720px;margin:0 auto;padding:18px 16px 30px;text-align:center;background:linear-gradient(180deg,rgba(5,10,20,0),#07111f 40px)}
+.ipanel .ititle{font-size:clamp(38px,9vw,60px)}
+.ipanel .ilv{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.ipanel .irules{margin:14px 0 6px;text-align:left}
+@media(min-width:900px){
+ .overlay.intro{flex-direction:row;overflow:hidden}
+ .iscene{flex:1;height:auto;min-height:100vh}
+ .iscene .vig{background:radial-gradient(ellipse at 55% 55%,transparent 60%,rgba(3,8,16,.5) 100%),linear-gradient(90deg,rgba(7,17,31,.85),transparent 14%)}
+ .ipanel{order:-1;flex:none;width:470px;max-width:none;margin:0;height:100vh;overflow:auto;text-align:left;padding:26px 24px 30px;background:linear-gradient(180deg,#081425,#07111f);border-right:1px solid #1f3149;box-shadow:6px 0 28px #0009}
+ .ipanel .ilv{grid-template-columns:1fr}
+ .ipanel .iname{justify-content:flex-start}
+ .ipanel .iecg{margin-left:0}
+ .ipanel .ititle{font-size:54px}
+}
+.iscene{background:linear-gradient(180deg,#02060d,#0b1a2e 55%,#162b45)}
+/* 救護車直接畫在場景裡，跟建築同比例縮放 */
+.ga1{animation:ga1 13s linear infinite}.ga2{animation:ga2 9s linear infinite 3s;transform:translateX(1300px)}
+@keyframes ga1{0%{transform:translateX(-1300px)}26%{transform:translateX(0);animation-timing-function:ease-out}55%{transform:translateX(0)}88%{transform:translateX(1300px)}100%{transform:translateX(1300px)}}
+@keyframes ga2{0%{transform:translateX(1300px)}70%{transform:translateX(-1300px)}100%{transform:translateX(-1300px)}}
+@media(prefers-reduced-motion:reduce){.ga1,.ga2{animation:none}.ga1{transform:none}.ga2{display:none}}
+@media(min-width:900px){.ipanel{width:430px!important}}
+.ititle{background:none!important;-webkit-text-fill-color:initial!important;color:#fff!important;font-weight:900;letter-spacing:2px}
+.ititle .ie{-webkit-text-fill-color:initial}
+.ititle .gt{background:linear-gradient(90deg,#fff,#ffb3b8 50%,#7fd0ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
 </style>
 </head>
 <body>
@@ -716,44 +746,49 @@ const AMB=`<svg viewBox="0 0 230 110" xmlns="http://www.w3.org/2000/svg"><defs><
 <g><circle cx="52" cy="86" r="15" fill="#1b1f27"/><circle cx="52" cy="86" r="7" fill="#9aa5b1"/><circle cx="178" cy="86" r="15" fill="#1b1f27"/><circle cx="178" cy="86" r="7" fill="#9aa5b1"/></g></svg>`;
 function sceneHtml(){
  const win=[];for(let r=0;r<4;r++)for(let c=0;c<10;c++){const on=(r*7+c*3)%5!==0;win.push(`<rect x="${330+c*54}" y="${200+r*62}" width="34" height="38" rx="3" fill="${on?'#ffe9a8':'#33465f'}" class="${on&&(r+c)%3===0?'wf':''}" style="animation-delay:${((r*5+c*2)%9)*.7}s"/>`);}
- const stars=[...Array(40)].map((_,i)=>`<circle cx="${(i*97)%1200}" cy="${(i*53)%260+10}" r="${i%4===0?1.8:1.1}" fill="#fff" class="st" style="animation-delay:${(i%7)*.5}s"/>`).join('');
- return `<div class="scene"><svg viewBox="0 0 1200 700" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
- <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#050b16"/><stop offset="1" stop-color="#1d3a5c"/></linearGradient>
+ const stars=[...Array(90)].map((_,i)=>`<circle cx="${(i*131)%2200-500}" cy="${(i*83)%900-700}" r="${i%4===0?2.2:1.3}" fill="#fff" class="st" style="animation-delay:${(i%7)*.5}s"/>`).join('');
+ return `<div class="scene"><svg viewBox="240 60 720 620" preserveAspectRatio="xMidYMid meet" style="overflow:visible" xmlns="http://www.w3.org/2000/svg">
+ <defs><linearGradient id="sky" gradientUnits="userSpaceOnUse" x1="0" y1="-700" x2="0" y2="560"><stop offset="0" stop-color="#050b16"/><stop offset="1" stop-color="#1d3a5c"/></linearGradient>
  <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8fbff"/><stop offset="1" stop-color="#8fd3f0"/></linearGradient>
  <radialGradient id="lamp"><stop offset="0" stop-color="#ffe9a8" stop-opacity=".9"/><stop offset="1" stop-color="#ffe9a8" stop-opacity="0"/></radialGradient></defs>
- <rect width="1200" height="700" fill="url(#sky)"/>${stars}<circle cx="1010" cy="95" r="34" fill="#f4f1d8"/><circle cx="1022" cy="88" r="30" fill="#0a1424"/>
- <g fill="#0d1a2c"><rect x="0" y="360" width="130" height="200"/><rect x="140" y="410" width="110" height="150"/><rect x="930" y="380" width="120" height="180"/><rect x="1060" y="330" width="140" height="230"/></g>
+ <rect x="-3000" y="-3000" width="7200" height="3700" fill="url(#sky)"/>${stars}<circle cx="880" cy="-90" r="34" fill="#f4f1d8"/><circle cx="893" cy="-97" r="30" fill="#0b1b30"/>
+ <g fill="#0d1a2c">${[...Array(26)].map((_,i)=>`<rect x="${-700+i*105}" y="${400-(i*37%130)}" width="98" height="${160+(i*37%130)}"/>`).join('')}</g>
  <g><rect x="300" y="160" width="600" height="400" fill="#c5d0dc"/><rect x="300" y="160" width="600" height="14" fill="#8795a8"/>${win.join('')}
  <rect x="560" y="96" width="80" height="64" rx="6" fill="#e5484d" class="glow"/><rect x="592" y="106" width="16" height="44" fill="#fff"/><rect x="578" y="120" width="44" height="16" fill="#fff"/></g>
  <rect x="410" y="402" width="380" height="54" rx="8" fill="#e5484d" class="glow"/><text class="neon" x="600" y="438" text-anchor="middle" font-size="30" font-weight="800" fill="#fff" font-family="sans-serif" letter-spacing="4">急診 EMERGENCY</text>
  <rect x="420" y="456" width="360" height="12" fill="#8795a8"/><rect x="430" y="468" width="10" height="92" fill="#8795a8"/><rect x="760" y="468" width="10" height="92" fill="#8795a8"/>
  <rect x="470" y="474" width="260" height="86" fill="url(#glass)"/><line x1="600" y1="474" x2="600" y2="560" stroke="#7aa8bd" stroke-width="3"/>
- <rect y="560" width="1200" height="140" fill="#1b2430"/><rect y="560" width="1200" height="10" fill="#2f3b4d"/><rect y="600" width="1200" height="100" fill="#262f3d"/>
- <line x1="0" y1="652" x2="1200" y2="652" stroke="#e8eef5" stroke-width="4" stroke-dasharray="46 40" opacity=".7"/>
- <g><rect x="196" y="420" width="6" height="140" fill="#455"/><circle cx="199" cy="418" r="46" fill="url(#lamp)"/><rect x="1006" y="420" width="6" height="140" fill="#455"/><circle cx="1009" cy="418" r="46" fill="url(#lamp)"/></g>
- <ellipse cx="600" cy="560" rx="520" ry="70" class="wash"/></svg>
- <div class="amb a1">${AMB}</div><div class="amb a2">${AMB}</div><div class="vig"></div></div>`;}
+ <rect x="-3000" y="560" width="7200" height="300" fill="#1b2430"/><rect x="-3000" y="560" width="7200" height="10" fill="#2f3b4d"/><rect x="-3000" y="600" width="7200" height="260" fill="#262f3d"/>
+ <line x1="-3000" y1="652" x2="4200" y2="652" stroke="#e8eef5" stroke-width="4" stroke-dasharray="46 40" opacity=".7"/>
+ <g><rect x="259" y="420" width="6" height="140" fill="#455"/><circle cx="262" cy="418" r="46" fill="url(#lamp)"/><rect x="935" y="420" width="6" height="140" fill="#455"/><circle cx="938" cy="418" r="46" fill="url(#lamp)"/></g>
+ <ellipse cx="600" cy="570" rx="520" ry="70" class="wash"/>
+ <g class="ga1">${AMB.replace('<svg ','<svg x="500" y="522" width="200" height="96" overflow="visible" ')}</g>
+ <g class="ga2"><g transform="translate(1200 0) scale(-1 1)">${AMB.replace('<svg ','<svg x="490" y="560" width="220" height="106" overflow="visible" ')}</g></g></svg>
+ <div class="vig"></div></div>`;}
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function savedName(){try{return localStorage.getItem('er24hr_name')||''}catch(e){return ''}}
 const nm=()=>S.player?esc(S.player)+' 醫師':'醫師';
-const VERSION='2026-11-05 r12';
+const VERSION='2026-11-05 r13';
 function intro(){S.started=false;
  const stars=n=>'●'.repeat(n)+'○'.repeat(6-n);
- $app.innerHTML=`<div class="overlay intro">${sceneHtml()}<div class="ibox">
- <div class="itop"><div class="ititle"><span class="ie">🚑</span> ER24hr</div><div class="isub">急診醫師 24 小時值班模擬</div>
- <svg class="iecg" viewBox="0 0 300 30" preserveAspectRatio="none"><path d="M0 15 H70 l6 -3 6 3 H110 l5 6 8 -22 8 28 6 -12 H190 l8 -6 8 6 H300" fill="none" stroke="#39ff7a" stroke-width="2" pathLength="1"/></svg>
- <p class="ilead">從 08:00 撐到隔天 08:00：救病人、別讓人死、也別被開除。</p></div>
- <div class="ispace"></div><div class="ibot">
- <details class="irules"><summary>📖 遊戲說明（第一次玩請看）</summary>
- <p><b>病人分兩類：</b>外傷／非外傷。每個人有檢傷級（TTAS 1 復甦急救 ～ 5 非緊急）和隱藏的嚴重度（輕／中／重）。護理師有時會評錯檢傷級，用「重新檢傷」確認真實狀況。</p>
- <p><b>六大急症</b>（OHCA、急性冠心症、腦中風、敗血症、重大外傷、呼吸衰竭）由救護車直送，有黃金時間：例如 ACS 10 分鐘內 ECG、腦中風 25 分鐘內 CT、敗血症 1 小時內抗生素、OHCA 5 分鐘內 CPR。下單即算達標，達標加分。</p>
- <p>流程：送進診間 → 穩定生命徵象 → 檢查／治療／會診 → 收住院或回家。<br>亂開不必要的處置扣分；會診要等檢查結果；tPA 要先做 CT；體力低於 30 會開錯醫囑。</p>
- <p><b>結局：</b>分數達到通關分數就提早下班通關；死亡人數太多（PGY 6 人、R1／R2 5 人、R3 以上 4 人）就被開除；撐滿 24 小時沒達標則是平安下班，依分數評等。</p>
- <p><b>速度：</b>1× 約 1 秒＝遊戲 1 分鐘；進入遊戲後先暫停，準備好再按「開始值班」；每次彈窗關閉後有 3 秒緩衝才繼續計時。</p>
- <p><b>快捷鍵：</b>1-8 選床位、Enter 送進診間、空白鍵暫停／繼續、Shift+1/2/4 切速度、字母下醫囑（按鈕上有標示）。<br><b>醫囑佇列：</b>醫師忙碌時再下醫囑會自動排隊（最多 3 筆），做完自動接下一筆；Shift+字母或對按鈕按右鍵可插隊；前置條件不符的會被取消。</p></details>
- <div class="iname"><label for="pname">👨‍⚕️ 你的名字</label><input id="pname" maxlength="8" autocomplete="off" placeholder="想被叫什麼？（可不填）" value="${esc(savedName())}"><small>會顯示在遊戲畫面與結局</small></div>
- <div class="ihead">選擇你的職級（難度）</div>
- <div class="ilv">${LEVELS.map((l,i)=>`<button data-do="start" data-a="${i}" class="lvbtn lv${i}"><div class="lvn"><b>${l.n}</b><span class="lvd">${stars(i+1)}</span></div><div class="lvt">${l.desc}</div></button>`).join('')}</div><div class="ver">版本 ${VERSION}（若畫面和說明不符，請按 Ctrl+F5 重新整理）</div></div></div></div>`;}
+ $app.innerHTML=`<div class="overlay intro">
+ <div class="iscene">${sceneHtml()}<div class="icap"><b>🏥 急診室夜班</b><span>08:00 → 隔天 08:00</span></div></div>
+ <div class="ipanel">
+  <div class="ititle"><span class="ie">🚑</span> <span class="gt">ER24hr</span></div><div class="isub">急診醫師 24 小時值班模擬</div>
+  <svg class="iecg" viewBox="0 0 300 30" preserveAspectRatio="none"><path d="M0 15 H70 l6 -3 6 3 H110 l5 6 8 -22 8 28 6 -12 H190 l8 -6 8 6 H300" fill="none" stroke="#39ff7a" stroke-width="2" pathLength="1"/></svg>
+  <p class="ilead">從 08:00 撐到隔天 08:00：救病人、別讓人死、也別被開除。</p>
+  <div class="iname"><label for="pname">👨‍⚕️ 你的名字</label><input id="pname" maxlength="8" autocomplete="off" placeholder="想被叫什麼？（可不填）" value="${esc(savedName())}"><small>會顯示在遊戲畫面與結局</small></div>
+  <div class="ihead">選擇你的職級（難度）</div>
+  <div class="ilv">${LEVELS.map((l,i)=>`<button data-do="start" data-a="${i}" class="lvbtn lv${i}"><div class="lvn"><b>${l.n}</b><span class="lvd">${stars(i+1)}</span></div><div class="lvt">${l.desc}</div></button>`).join('')}</div>
+  <details class="irules"><summary>📖 遊戲說明（第一次玩請看）</summary>
+  <p><b>病人分兩類：</b>外傷／非外傷。每個人有檢傷級（TTAS 1 復甦急救 ～ 5 非緊急）和隱藏的嚴重度（輕／中／重）。護理師有時會評錯檢傷級，用「重新檢傷」確認真實狀況。</p>
+  <p><b>六大急症</b>（OHCA、急性冠心症、腦中風、敗血症、重大外傷、呼吸衰竭）由救護車直送，有黃金時間：例如 ACS 10 分鐘內 ECG、腦中風 25 分鐘內 CT、敗血症 1 小時內抗生素、OHCA 5 分鐘內 CPR。下單即算達標，達標加分。</p>
+  <p>流程：送進診間 → 穩定生命徵象 → 檢查／治療／會診 → 收住院或回家。<br>亂開不必要的處置扣分；會診要等檢查結果；tPA 要先做 CT；體力低於 30 會開錯醫囑。</p>
+  <p><b>結局：</b>分數達到通關分數就提早下班通關；死亡人數太多（PGY 6 人、R1／R2 5 人、R3 以上 4 人）就被開除；撐滿 24 小時沒達標則是平安下班，依分數評等。</p>
+  <p><b>速度：</b>1× 約 1 秒＝遊戲 1 分鐘；進入遊戲後先暫停，準備好再按「開始值班」；每次彈窗關閉後有 3 秒緩衝才繼續計時。</p>
+  <p><b>快捷鍵：</b>1-8 選床位、Enter 送進診間、空白鍵暫停／繼續、Shift+1/2/4 切速度、字母下醫囑（按鈕上有標示）。<br><b>醫囑佇列：</b>醫師忙碌時再下醫囑會自動排隊（最多 3 筆），做完自動接下一筆；Shift+字母或對按鈕按右鍵可插隊；前置條件不符的會被取消。</p></details>
+  <div class="ver">版本 ${VERSION}（若畫面和說明不符，請按 Ctrl+F5 重新整理）</div>
+ </div></div>`;}
 function start(i){const lv=LEVELS[i];S.lv=lv;
  S.player=((document.getElementById('pname')||{}).value||'').trim().slice(0,8);
  try{localStorage.setItem('er24hr_name',S.player)}catch(e){}S.mcis=lv.mcis.map(t=>t+(Math.random()*100-50|0));
