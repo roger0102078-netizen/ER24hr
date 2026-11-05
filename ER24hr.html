@@ -146,6 +146,8 @@ const LEVELS=[
  {k:'R4',n:'R4',desc:'病人量多、重症比例高、惡化快',rate:1.25,six:1.4,minT:1,sev:[.4,.35,.25],mis:.2,dec:1.2,sd:1.1,mcis:[800],init:5,hint:0},
  {k:'VS',n:'VS 主治',desc:'地獄模式：六大急症爆量、檢傷常評錯、兩次大量傷患、體力消耗快',rate:1.5,six:2,minT:1,sev:[.3,.35,.35],mis:.25,dec:1.4,sd:1.3,mcis:[500,1000],init:6,hint:0},
 ];
+const FIRE={PGY:6,R1:5,R2:5,R3:4,R4:4,VS:4}; // 死亡達此人數就被開除
+const goal=()=>Math.round(300*S.lv.rate); // 通關分數：達到就提早下班通關
 let S, timer;
 
 function newGame(){S={t:0,speed:1,pts:[],nid:1,beds:Array(NB).fill(null),task:null,sel:null,st:100,log:[],
@@ -197,7 +199,9 @@ function tick(){
   if(p.hp<=0){S.died++;S.score-=40;missGold(p);log(`💀 ${p.name}（${p.cs.dx}）來不及搶救，宣告死亡。`,'r');remove(p,0);}
   else if(p.loc==null&&LIM[p.tt]&&p.wait>LIM[p.tt]){S.lwbs++;S.score-=8;missGold(p);log(`🚶 ${p.name} 等太久，沒看醫生就自己走了`,'y');remove(p,0);}
  }
- if(S.t>=1440){S.ended=true;S.score+=Math.round(avgSat()/5);}
+ if(S.died>=FIRE[S.lv.k]){S.ended=true;S.result='fired';}
+ else if(S.score>=goal()){S.ended=true;S.result='clear';}
+ else if(S.t>=1440){S.ended=true;S.result='time';S.score+=Math.round(avgSat()/5);}
 }
 const avgSat=()=>S.sats.length?S.sats.reduce((a,b)=>a+b,0)/S.sats.length:100;
 
@@ -334,9 +338,9 @@ function render(){
  let h=`<div id="top"><div id="clock">${hh(S.t)}</div><span class="tag six" style="font-size:13px;padding:2px 8px">${S.lv.k}</span>
   <div class="stat"><small>體力 ${S.st.toFixed(0)}</small>${bar(S.st,S.st>30?'var(--ok)':'var(--bad)')}</div>
   <div class="stat"><small>病人滿意度 ${avgSat().toFixed(0)}</small>${bar(avgSat(),'var(--ac)')}</div>
-  <div class="stat"><small>救回 ✅ ${S.saved}　死亡 💀 ${S.died}</small><small>跑掉 🚶 ${S.lwbs}　糾紛 ⚠ ${S.bad}</small></div>
+  <div class="stat"><small>救回 ✅ ${S.saved}　死亡 💀 ${S.died}/${FIRE[S.lv.k]}</small><small>跑掉 🚶 ${S.lwbs}　糾紛 ⚠ ${S.bad}</small></div>
   <div class="stat"><small>六大急症黃金時間</small><b>🏅 ${S.sixHit} / ${S.sixHit+S.sixMiss}</b></div>
-  <div class="stat"><small>分數</small><b>${S.score}</b></div>
+  <div class="stat"><small>分數（通關 ${goal()}）</small><b>${S.score}</b></div>
   <div class="stat" style="flex:1;min-width:180px"><small>醫師目前</small><b>${taskText()}</b></div>
   <div><button data-do="speed" data-a="0">⏸</button> <button data-do="speed" data-a="1">1×</button> <button data-do="speed" data-a="2">2×</button> <button data-do="speed" data-a="4">4×</button></div>
   <div><button data-do="rest" data-a="咖啡" ${S.task?'disabled':''}>☕ 咖啡 +12</button> <button data-do="rest" data-a="小睡" ${S.task?'disabled':''}>😴 小睡20分 +35</button></div></div>`;
@@ -386,6 +390,7 @@ function intro(){S.started=false;$app.innerHTML=`<div class="overlay"><div class
 <p><b>病人分兩類：</b>外傷／非外傷。每個人有檢傷級（TTAS 1 復甦急救 ～ 5 非緊急）和隱藏的嚴重度（輕／中／重）。護理師有時會評錯檢傷級，用「重新檢傷」確認真實狀況。</p>
 <p><b>六大急症</b>（OHCA、急性冠心症、腦中風、敗血症、重大外傷、呼吸衰竭）由救護車直送，有黃金時間：例如 ACS 10 分鐘內 ECG、腦中風 25 分鐘內 CT、敗血症 1 小時內抗生素、OHCA 5 分鐘內 CPR。達標加分。</p>
 <p>流程：送進診間 → 穩定生命徵象 → 檢查／治療／會診 → 收住院或回家。<br>亂開不必要的處置扣分；會診要等檢查結果；tPA 要先做 CT；體力低於 30 會開錯醫囑。</p>
+<p><b>結局：</b>分數達到通關分數就提早下班通關；死亡人數太多（PGY 6 人、R1／R2 5 人、R3 以上 4 人）就被開除；撐滿 24 小時沒達標則是平安下班，依分數評等。</p>
 <p><b>選擇你的職級（難度）：</b></p>${LEVELS.map((l,i)=>`<button data-do="start" data-a="${i}" style="width:100%;text-align:left;margin-bottom:6px;padding:8px 10px"><b>${l.n}</b><br><small class="res">${l.desc}</small></button>`).join('')}</div></div>`;}
 function start(i){const lv=LEVELS[i];S.lv=lv;S.mcis=lv.mcis.map(t=>t+(Math.random()*100-50|0));
  S.started=true;S.speed=1;log(`🕗 08:00 交班完成，開始值班（${lv.n}）。`);
@@ -394,7 +399,9 @@ function start(i){const lv=LEVELS[i];S.lv=lv;S.mcis=lv.mcis.map(t=>t+(Math.rando
 function hintHtml(p){const h=S.lv.hint;if(!h)return '';
  return `<p class="res" style="margin:6px 0">💡 可能診斷：${p.cs.dx}${h>=2?`<br>建議處置：${p.cs.need.join('、')||'無需特別處置'}（${p.cs.dis==='admit'?'收住院':'回家'}）`:''}</p>`;}
 function end(){const r=S.lv.rate;const g=S.score>=700*r?['S','急診之神']:S.score>=450*r?['A','資深主治等級']:S.score>=250*r?['B','堪用的住院醫師']:S.score>=100*r?['C','還在適應中']:['D','建議先去睡一覺'];
- $app.innerHTML+=`<div class="overlay"><div class="box"><h1>🌅 08:00 下班（${S.lv.n}）</h1><div class="big" style="color:var(--ac)">${g[0]}</div><p style="font-size:16px">${g[1]}（${S.score} 分）</p>
+ const R=S.result,title=R==='fired'?`🔥 你被開除了（${S.lv.n}）`:R==='clear'?`🏆 通關！提早 ${hh(S.t)} 下班（${S.lv.n}）`:`🌅 08:00 下班（${S.lv.n}）`;
+ const sub=R==='fired'?`<p class="warn" style="font-size:16px">${S.died} 位病人死亡，院方決定請你離開。</p>`:R==='clear'?`<p style="color:var(--ok);font-size:16px">分數達到 ${goal()}，表現優異！</p>`:`<p class="res" style="font-size:15px">撐完 24 小時，但沒達到通關分數 ${goal()}。</p>`;
+ $app.innerHTML+=`<div class="overlay"><div class="box"><h1>${title}</h1>${sub}<div class="big" style="color:var(--ac)">${R==='fired'?'F':g[0]}</div><p style="font-size:16px">${R==='fired'?'建議轉換跑道':g[1]}（${S.score} 分）</p>
  <p>救回 ${S.saved}　死亡 ${S.died}　跑掉 ${S.lwbs}　糾紛 ${S.bad}<br>六大急症 ${S.sixSeen} 人，黃金時間達標 ${S.sixHit} 次<br>過度醫療 ${S.over} 次　不必要住院 ${S.overAdm}　平均滿意度 ${avgSat().toFixed(0)}</p>
  <button data-do="again" style="width:100%;padding:12px">再值一班</button></div></div>`;}
 newGame();intro();loop();
