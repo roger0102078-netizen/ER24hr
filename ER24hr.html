@@ -46,6 +46,15 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .box{background:var(--card);padding:24px;border-radius:14px;max-width:560px;width:100%}
 .box h1{margin:0 0 8px}.box p{color:var(--mut)}
 .big{font-size:56px;font-weight:800;line-height:1}
+.mon{background:#04120a;border:2px solid #1d3a2a;border-radius:8px;margin:8px 0;overflow:hidden;font-family:ui-monospace,Consolas,monospace}
+.monwave{position:relative;border-bottom:1px solid #1d3a2a;background:repeating-linear-gradient(0deg,transparent 0 15px,rgba(57,255,122,.07) 15px 16px),repeating-linear-gradient(90deg,transparent 0 25px,rgba(57,255,122,.07) 25px 26px)}
+.monlab{position:absolute;left:6px;top:2px;font-size:11px;color:#39ff7a;opacity:.8}
+.monnum{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:2px 0;padding:4px 0}
+.monnote{padding:2px 8px 5px;font-size:11px;color:#7aa88a;border-top:1px solid #10281b}
+@keyframes blink{50%{opacity:.25}}
+.fig{flex:none;overflow:visible}
+.fig.shake{animation:figshake .35s infinite}
+@keyframes figshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-1.5px)}75%{transform:translateX(1.5px)}}
 </style>
 </head>
 <body>
@@ -125,6 +134,8 @@ const C=dx=>CASES.find(c=>c.dx===dx);
 const NAMES=['王先生','陳小姐','林阿嬤','張大哥','李同學','黃伯伯','吳太太','劉小弟','蔡小姐','楊先生','許阿公','鄭小姐','謝先生','洪媽媽','郭先生'];
 const TRI=['','復甦急救','危急','緊急','次緊急','非緊急'];
 const SEV=['輕度','中度','重度'], SEVM=[.5,1,1.8];
+const COMMON=['穩定生命徵象','ECG','抽血','CT','X光','輸液','止痛','抗生素','觀察30分']; // 預設顯示的常用處置,其餘在「更多處置」
+const ARRIVE=.6; // 全域病人到院速度倍率(1=原本,越小越慢)
 const DEC=[0,.6,.3,.08,.02,0], LIM={3:240,4:180,5:120}, NB=8;
 // 職級難度：rate 病人量倍率、six 六大急症權重、minT 非六大急症最低檢傷級(數字越大越輕症)、sev 嚴重度機率、mis 護理師評錯檢傷機率、dec 惡化速度、sd 體力消耗、mcis 大量傷患時間(分鐘)、init 開局病人數、hint 提示(0無 1診斷 2診斷+處置)
 const LEVELS=[
@@ -169,7 +180,7 @@ function missGold(p){if(p.cs.gold&&!p.goldDone){p.goldDone=true;S.sixMiss++;}}
 function tick(){
  if(S.ended)return;S.t++;
  const h=((480+S.t)/60)%24;
- const rate=(h>=8&&h<17?1/20:h>=17&&h<22?1/14:(h>=22||h<4)?1/22:1/30)*S.lv.rate;
+ const rate=(h>=8&&h<17?1/20:h>=17&&h<22?1/14:(h>=22||h<4)?1/22:1/30)*S.lv.rate*ARRIVE;
  if(Math.random()<rate)spawn();
  if(S.mcis.length&&S.t>=S.mcis[0]){S.mcis.shift();mci();}
  S.st=Math.max(0,S.st-(0.03+(S.task?0.1:0))*S.lv.sd);
@@ -209,6 +220,9 @@ function finish(){
  if(A.stab&&(a==='穩定生命徵象'||need.includes(a))){p.stab=true;log(`🫁 ${p.name} 生命徵象已穩定`,'g');}
  if(a==='穩定生命徵象'){return}
  if(!need.includes(a))S.over++;
+ if(!A.w&&!A.c){ // 立即生效的治療：給病人反應回饋
+  if(need.includes(a)){p.hp=Math.min(100,p.hp+8);log(`💚 ${p.name} 接受「${a}」後有明顯改善`,'g');}
+  else log(`😐 ${p.name} 接受「${a}」後沒有明顯變化`,'y');}
  if(A.w>0)p.pend.push({a,left:A.w});else p.done.push(a);
 }
 function dispo(p,kind){
@@ -243,6 +257,76 @@ const hpc=v=>v>60?'var(--ok)':v>30?'var(--t3)':'var(--bad)';
 const catTag=p=>`<span class="tag ${p.cs.cat==='外傷'?'tr':'nt'}">${p.cs.cat}</span>${p.cs.six?'<span class="tag six">六大急症</span>':''}`;
 function taskText(){if(!S.task)return '閒置';const t=S.task,p=byId(t.pid);
  const nm=t.a==='__reassess'?'重新檢傷':t.a.startsWith('__')?(t.a==='__admit'?'辦理住院':'開立出院'):t.a;return `${nm}${p?'（'+p.name+'）':''} 剩 ${t.left} 分`;}
+/* ---- 病人人形：表情依血量/等待、動作依病情 ---- */
+function figure(p,sz){
+ const cs=p.cs,s=cs.c+cs.dx+cs.v,hp=p.hp;
+ const lying=/心跳停止|無呼吸|意識不清|意識混亂|抽搐|昏倒|倒在路邊|喝醉|GCS 1[0-4]/.test(s)||hp<=20;
+ const mood=hp<=15?'out':hp<35?'faint':hp<60?'pain':(p.loc==null&&p.sat<45)?'angry':cs.t<=3?'worried':'calm';
+ const skin=hp<35?'#d8d2c4':hp<60?'#f1cfb0':'#f6d2b0', hair=p.age>=60?'#c8c8c8':'#3b2f2f';
+ const longHair=/小姐|阿嬤|太太|媽媽/.test(p.name), cloth=cs.cat==='外傷'?'#7fa8c9':'#8fbf9f';
+ const arm=(pts)=>`<polyline points="${pts}" fill="none" stroke="${skin}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>`;
+ let L='38,58 31,80 30,96', R='62,58 69,80 70,96', extra='', mouth='';
+ const breath=/喘|呼吸困難|呼吸衰竭|氣胸|喉嚨緊/.test(s);
+ if(/胸痛|冠心症|心悸/.test(s)){R='62,58 67,72 52,64';}
+ else if(breath){L='38,58 40,72 50,64';R='62,58 60,72 50,64';}
+ else if(/頭痛|頭暈|天旋地轉|撞到頭|中風|偏頭痛/.test(s)){R='62,58 74,44 62,24';}
+ else if(/腹|拉肚子|嘔吐|腸胃|闌尾|結石|腰痛/.test(s)){L='38,58 34,78 48,80';R='62,58 66,78 52,80';}
+ else if(/手被|手臂|前臂|手部|燙傷手/.test(s)){L='38,58 33,76 50,72';extra+=`<rect x="31" y="66" width="20" height="9" rx="3" fill="#fff" stroke="#bbb" transform="rotate(-8 41 70)"/>`;}
+ else if(p.loc==null&&hp>=60&&cs.t>=4){R='62,58 75,50 79,36';}
+ if(/腳|踝|髖|小腿|跌倒|機車/.test(s)&&!/手被|前臂|手部/.test(s))extra+=`<rect x="38" y="104" width="12" height="9" rx="3" fill="#fff" stroke="#bbb"/>`;
+ if(/流血|割|刺|咬|車禍|擦挫|高速/.test(s))extra+=`<circle cx="44" cy="70" r="4" fill="#c0392b"/><circle cx="55" cy="80" r="3" fill="#c0392b"/>`;
+ if(/發燒|T 39|T 38/.test(s))extra+=`<circle cx="39" cy="36" r="4" fill="#ff8a8a" opacity=".6"/><circle cx="61" cy="36" r="4" fill="#ff8a8a" opacity=".6"/>`;
+ let eyes,brow='';
+ if(mood==='out'){eyes='<path d="M40 27 L46 33 M46 27 L40 33 M54 27 L60 33 M60 27 L54 33" stroke="#333" stroke-width="2" fill="none"/>';mouth='<path d="M45 41 L55 41" stroke="#333" stroke-width="2"/>';}
+ else if(mood==='faint'){eyes='<path d="M40 30 L46 30 M54 30 L60 30" stroke="#333" stroke-width="2.5"/>';mouth='<ellipse cx="50" cy="41" rx="3" ry="2" fill="#7a2b2b"/>';}
+ else if(mood==='pain'){eyes='<path d="M40 27 L46 30 L40 33 M60 27 L54 30 L60 33" stroke="#333" stroke-width="2" fill="none"/>';mouth='<ellipse cx="50" cy="40" rx="4" ry="3.5" fill="#7a2b2b"/>';extra+='<path d="M70 18 q3 5 0 8 q-3 -3 0 -8z" fill="#5ab0ff"/>';}
+ else{eyes='<circle cx="43" cy="30" r="2.2" fill="#333"/><circle cx="57" cy="30" r="2.2" fill="#333"/>';
+  if(mood==='worried'){brow='<path d="M39 25 L46 22 M61 25 L54 22" stroke="#333" stroke-width="1.8"/>';mouth='<path d="M44 41 Q50 37 56 41" stroke="#333" stroke-width="2" fill="none"/>';}
+  else if(mood==='angry'){brow='<path d="M39 22 L46 26 M61 22 L54 26" stroke="#333" stroke-width="1.8"/>';mouth='<path d="M44 42 Q50 37 56 42" stroke="#333" stroke-width="2" fill="none"/>';extra+='<text x="68" y="20" font-size="12">💢</text>';}
+  else mouth='<path d="M43 38 Q50 45 57 38" stroke="#333" stroke-width="2" fill="none"/>';}
+ if(breath&&(mood==='worried'||mood==='calm'))mouth='<ellipse cx="50" cy="40" rx="3.5" ry="3" fill="#7a2b2b"/>';
+ const body=`${longHair?`<rect x="31" y="20" width="38" height="36" rx="14" fill="${hair}"/>`:''}
+  <line x1="44" y1="88" x2="42" y2="125" stroke="#5a6b8a" stroke-width="9" stroke-linecap="round"/><line x1="56" y1="88" x2="58" y2="125" stroke="#5a6b8a" stroke-width="9" stroke-linecap="round"/>
+  <rect x="36" y="50" width="28" height="42" rx="9" fill="${cloth}"/>${arm(L)}${arm(R)}
+  <circle cx="50" cy="30" r="17" fill="${skin}"/><path d="M33 29 Q33 10 50 10 Q67 10 67 29 Q60 19 50 19 Q40 19 33 29Z" fill="${hair}"/>${eyes}${brow}${mouth}${extra}`;
+ const cls=mood==='pain'||mood==='faint'?'fig shake':mood==='angry'?'fig shake':'fig';
+ return `<svg class="${cls}" viewBox="-15 0 130 135" width="${sz}" height="${Math.round(sz*135/130)}" aria-hidden="true"><g ${lying?'transform="rotate(-90 50 75)"':''}>${body}</g>${lying?'<rect x="-8" y="108" width="116" height="6" rx="3" fill="#9aa5b1" opacity=".7"/>':''}</svg>`;
+}
+/* ---- 生理監視器：由 cs.v 解析數值，血量低時數值惡化；心電圖波形隨心率捲動 ---- */
+let MON=null;
+function vitals(p){
+ const v=p.cs.v,g=r=>{const m=v.match(r);return m?m:null};
+ let hr=+(g(/HR (\d+)/)||[,80])[1],sbp=120,dbp=80,spo2=98,rr=16,tp=36.8,gcs=15;
+ const bp=g(/BP (\d+)\/(\d+)/);if(bp){sbp=+bp[1];dbp=+bp[2];}
+ const so=g(/SpO2 (\d+)/);if(so)spo2=+so[1];
+ const r=g(/RR (\d+)/);if(r)rr=+r[1];
+ const t=g(/T (\d+\.?\d*)/);if(t)tp=+t[1];
+ const gc=g(/GCS (\d+)/);if(gc)gcs=+gc[1];
+ if(/血糖/.test(v)&&!so){hr=100;}
+ const arrest=/心跳停止|無脈搏/.test(p.cs.c+p.cs.dx);
+ const worse=p.stab||allDone(p)?0:Math.max(0,60-p.hp);
+ const j=((S.t+p.id)%3)-1;
+ if(arrest)return {arrest:true,hr:0,sbp:0,dbp:0,spo2:0,rr:0,tp,gcs:3,v};
+ hr=Math.round(hr+worse/3+j);sbp=Math.round(sbp-worse/2.5+j);dbp=Math.round(dbp-worse/4);spo2=Math.max(50,Math.round(spo2-worse/6));rr=Math.round(rr+worse/5);
+ return {arrest:false,hr,sbp,dbp,spo2,rr,tp,gcs,v,st:/冠心症|STEMI/.test(p.cs.dx)};}
+function monitor(p){
+ const m=vitals(p);MON=m;
+ const bad=(c)=>c?'color:#ff5252;animation:blink 1s infinite':'';
+ const cell=(lab,val,unit,col,alarm)=>`<div style="padding:4px 8px;border-left:1px solid #1d3a2a"><div style="font-size:11px;color:${col};opacity:.85">${lab}</div><div style="font-size:26px;font-weight:700;line-height:1;color:${col};${bad(alarm)}">${val}<small style="font-size:11px;font-weight:400"> ${unit}</small></div></div>`;
+ return `<div class="mon"><div class="monwave"><svg viewBox="0 0 260 64" preserveAspectRatio="none" width="100%" height="64"><path id="ecgp" d="" fill="none" stroke="#39ff7a" stroke-width="1.8"/></svg><span class="monlab">${m.arrest?'⚠ 無心跳 PEA／心跳停止':'II　ECG'}</span></div>
+ <div class="monnum">${cell('HR 心率',m.arrest?'0':m.hr,'/min','#39ff7a',!m.arrest&&(m.hr>120||m.hr<50))}${cell('BP 血壓',m.arrest?'--/--':m.sbp+'/'+m.dbp,'mmHg','#ff6b6b',!m.arrest&&m.sbp<90)}${cell('SpO₂ 血氧',m.arrest?'--':m.spo2,'%','#4dd0ff',!m.arrest&&m.spo2<92)}${cell('RR 呼吸',m.arrest?'0':m.rr,'/min','#ffe066',!m.arrest&&(m.rr>24||m.rr<10))}${cell('Temp 體溫',m.tp.toFixed(1),'°C','#ffffff',m.tp>=38.5)}${cell('GCS 意識',m.gcs,'/15','#d0a8ff',m.gcs<=13)}</div>
+ <div class="monnote">${m.v}</div></div>`;}
+(function ecgLoop(){const el=document.getElementById('ecgp');
+ if(el&&MON){const W=260,B=40,hr=MON.hr,per=hr>0?Math.max(14,3600/hr/ (60/ 60)):0,off=performance.now()/1000*60;let d='';
+  const G=(x,m,s,a)=>a*Math.exp(-((x-m)*(x-m))/(2*s*s));
+  for(let x=0;x<=W;x+=2){let y=0;
+   if(MON.arrest)y=Math.sin((x+off)/9)*1.2+Math.sin((x+off)/3.1)*0.8;
+   else{const ph=((x+off)%per)/per;y=G(ph,.15,.03,4)-G(ph,.27,.012,4)+G(ph,.30,.012,26)-G(ph,.33,.014,7)+G(ph,.62,.06,8);
+    if(MON.st&&ph>.33&&ph<.55)y+=9;
+    if(MON.hr>0&&MON.spo2<85)y+=Math.sin((x+off)/2)*.6;}
+   d+=(x?'L':'M')+x+' '+(B-y).toFixed(1)+' ';}
+  el.setAttribute('d',d);}
+ requestAnimationFrame(ecgLoop);})();
 function render(){
  if(!S.started)return;
  const lobby=S.pts.filter(p=>p.loc==null).sort((a,b)=>a.shown-b.shown||b.wait-a.wait);
@@ -257,26 +341,30 @@ function render(){
   <div><button data-do="speed" data-a="0">⏸</button> <button data-do="speed" data-a="1">1×</button> <button data-do="speed" data-a="2">2×</button> <button data-do="speed" data-a="4">4×</button></div>
   <div><button data-do="rest" data-a="咖啡" ${S.task?'disabled':''}>☕ 咖啡 +12</button> <button data-do="rest" data-a="小睡" ${S.task?'disabled':''}>😴 小睡20分 +35</button></div></div>`;
  h+=`<div id="main"><div class="panel"><h3>候診區（${lobby.length}）</h3><div class="legend">${[1,2,3,4,5].map(i=>`<span class="t${i}">${i} ${TRI[i]}</span>`).join('')}</div>`;
- h+=lobby.map(p=>`<div class="pt ${p.id===S.sel?'sel':''}" data-do="sel" data-a="${p.id}"><div class="tri t${p.shown}">${p.shown}</div><div class="m"><b>${p.name} ${p.age}歲</b><span>${p.cs.c}</span><div class="tags" style="margin:2px 0">${catTag(p)}${p.known?`<span class="tag">${SEV[p.sev-1]}</span>`:''}</div>${bar(p.hp,hpc(p.hp))}</div><small>${p.wait}分</small></div>`).join('')||'<div class="res">沒有人在等 🎉</div>';
+ h+=lobby.map(p=>`<div class="pt ${p.id===S.sel?'sel':''}" data-do="sel" data-a="${p.id}">${figure(p,86)}<div class="tri t${p.shown}">${p.shown}</div><div class="m"><b>${p.name} ${p.age}歲</b><span>${p.cs.c}</span><div class="tags" style="margin:2px 0">${catTag(p)}${p.known?`<span class="tag">${SEV[p.sev-1]}</span>`:''}</div>${bar(p.hp,hpc(p.hp))}</div><small>${p.wait}分</small></div>`).join('')||'<div class="res">沒有人在等 🎉</div>';
  h+=`</div><div><div class="panel"><h3>急診診間（${S.beds.filter(x=>x).length}/${NB}）</h3><div id="beds">`;
  h+=S.beds.map((id,i)=>{const p=id&&byId(id);if(!p)return `<div class="bed empty">空床 ${i+1}</div>`;
   const busy=S.task&&S.task.pid===p.id;
-  return `<div class="bed ${p.id===S.sel?'sel':''} ${busy?'busy':''}" data-do="sel" data-a="${p.id}"><div style="display:flex;gap:6px;align-items:center"><div class="tri t${p.shown}">${p.shown}</div><b>${p.name}</b></div><div class="res">${p.cs.c}</div>${bar(p.hp,hpc(p.hp))}
+  return `<div class="bed ${p.id===S.sel?'sel':''} ${busy?'busy':''}" data-do="sel" data-a="${p.id}"><div style="display:flex;gap:6px;align-items:center">${figure(p,72)}<div class="tri t${p.shown}">${p.shown}</div><b>${p.name}</b></div><div class="res">${p.cs.c}</div>${bar(p.hp,hpc(p.hp))}
   <div class="tags">${catTag(p)}${p.known?`<span class="tag">${SEV[p.sev-1]}</span>`:''}${p.stab?'<span class="tag">🫁穩定</span>':''}${p.pend.length?`<span class="tag">⏳等結果 ${p.pend.length}</span>`:''}${allDone(p)?'<span class="tag" style="color:var(--ok)">可處置</span>':''}</div></div>`}).join('');
  h+=`</div></div><div class="panel" style="margin-top:12px"><h3>事件紀錄</h3><div id="log">${S.log.map(l=>`<div class="${l.cls}">[${hh(l.t)}] ${l.msg}</div>`).join('')}</div></div></div>`;
  h+=`<div class="panel"><h3>病人處置</h3>`;
  if(!sel)h+='<div class="res">點選候診區或診間的病人</div>';
  else{
-  h+=`<div style="display:flex;gap:8px;align-items:center"><div class="tri t${sel.shown}">${sel.shown}</div><b style="font-size:16px">${sel.name}，${sel.age}歲</b></div>
+  h+=`<div style="display:flex;gap:10px;align-items:center">${figure(sel,150)}<div class="tri t${sel.shown}">${sel.shown}</div><b style="font-size:16px">${sel.name}，${sel.age}歲</b></div>
   <div class="tags">${catTag(sel)}<span class="tag">檢傷 ${sel.shown} 級・${TRI[sel.shown]}</span>${sel.known?`<span class="tag">嚴重度：${SEV[sel.sev-1]}</span>`:'<span class="tag">嚴重度：未評估</span>'}</div>
-  <p style="margin:6px 0">主訴：${sel.cs.c}<br><span class="res">${sel.cs.v}</span></p>${bar(sel.hp,hpc(sel.hp))}
+  <p style="margin:6px 0">主訴：${sel.cs.c}</p>
+  ${monitor(sel)}${bar(sel.hp,hpc(sel.hp))}
+  <p class="res" style="margin:4px 0">病況：${sel.stab||allDone(sel)?'<span style="color:var(--ok)">✔ 穩定／已處理完畢</span>':sel.loc==null?'<span class="warn">⚠ 等待中，持續惡化</span>':'<span class="warn">⚠ 尚未處理完，仍在緩慢惡化</span>'}　必要處置進度 ${sel.cs.need.filter(n=>sel.done.includes(n)).length}/${sel.cs.need.length}</p>
   ${sel.cs.gold&&!sel.goldDone?`<p class="res" style="margin:6px 0">⏱ 黃金時間：${sel.cs.gold.m} 分鐘內完成「${sel.cs.gold.a}」（已過 ${S.t-sel.arr} 分）</p>`:''}${hintHtml(sel)}`;
   const dis=S.task?'disabled':'';
   h+=`<button data-do="reassess" style="width:100%;margin:6px 0" ${dis||sel.known?'disabled':''}>🔍 重新檢傷（1 分）：確認真實檢傷級與嚴重度</button>`;
   if(sel.loc==null)h+=`<button data-do="bed" style="width:100%;margin-top:4px">🛏️ 送進診間（${S.beds.filter(x=>!x).length} 床空）</button>`;
   else{
    h+=`<div class="res" style="margin:8px 0">${Object.entries(sel.res).map(([k,v])=>`<div><b>${k}</b>：<span class="${v.includes('⚠')?'warn':''}">${v}</span></div>`).join('')||'尚無檢查結果'}</div>`;
-   h+=GROUPS.map(([g,list])=>`<div class="gl">${g}</div><div class="grid3">${list.map(k=>{const A=ACT[k];return `<button data-do="act" data-a="${k}" ${dis||(k==='穩定生命徵象'?sel.stab:has(sel,k))?'disabled':''}>${A.i} ${k}<br><small class="res">${A.d}分${A.w?'＋等'+A.w:''}</small></button>`}).join('')}</div>`).join('');
+   const shownList=l=>S.more?l:l.filter(k=>COMMON.includes(k)||has(sel,k)||(k==='穩定生命徵象'&&sel.stab));
+   h+=GROUPS.map(([g,all])=>[g,shownList(all)]).filter(([g,list])=>list.length).map(([g,list])=>`<div class="gl">${g}</div><div class="grid3">${list.map(k=>{const A=ACT[k];return `<button data-do="act" data-a="${k}" ${dis||(k==='穩定生命徵象'?sel.stab:has(sel,k))?'disabled':''}>${A.i} ${k}<br><small class="res">${A.d}分${A.w?'＋等'+A.w:''}</small></button>`}).join('')}</div>`).join('');
+   h+=`<button data-do="more" style="width:100%;margin-top:6px">${S.more?'▲ 只看常用處置':'▼ 更多處置（急救、特殊藥物、會診…）'}</button>`;
    h+=`<div class="grid3" style="grid-template-columns:1fr 1fr;margin-top:10px"><button data-do="dispo" data-a="admit" ${dis}>🏥 收住院</button><button data-do="dispo" data-a="home" ${dis}>🏠 回家</button></div>`;
   }
  }
@@ -287,7 +375,7 @@ function render(){
 const $app=document.getElementById('app');
 document.addEventListener('pointerdown',e=>{
  const b=e.target.closest('[data-do]');if(!b||b.disabled)return;const a=b.dataset.a;
- ({sel:()=>S.sel=+a,bed:toBed,act:()=>doAct(a),dispo:()=>doDispo(a),rest:()=>doRest(a),reassess:doReassess,speed:()=>S.speed=+a,start:()=>start(+a),again:()=>{newGame();intro()}})[b.dataset.do]?.();
+ ({sel:()=>S.sel=+a,bed:toBed,act:()=>doAct(a),dispo:()=>doDispo(a),rest:()=>doRest(a),reassess:doReassess,more:()=>S.more=!S.more,speed:()=>S.speed=+a,start:()=>start(+a),again:()=>{newGame();intro()}})[b.dataset.do]?.();
  render();
 });
 function loop(){
