@@ -76,6 +76,10 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .crit{border-color:var(--bad);animation:critbox .8s infinite}
 button.on{background:var(--ac);color:#04121c;border-color:var(--ac);font-weight:700}
 .dim{opacity:.55}
+.nag{animation:figshake .22s 5}.nagtxt{margin:6px 0;font-weight:700}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin:2px 0 8px}.tabbtn{padding:4px 10px;font-size:12.5px;border-radius:999px}
+button.hi{border-color:#f5c518!important;background:#3a3216!important;box-shadow:0 0 0 1px #f5c518 inset}
+.ver{font-size:11px;color:#8ea0b5;margin-top:6px}
 .fresh{animation:freshp .9s ease-in-out infinite!important;border-color:var(--ac)!important}@keyframes freshp{50%{box-shadow:0 0 0 3px var(--ac),0 0 14px var(--ac)}}
 #veil{position:fixed;top:calc(var(--toph,64px) + 6px);left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;align-items:center;max-width:94vw;background:rgba(25,36,51,.96);border:2px solid var(--t3);border-radius:12px;padding:6px 14px;z-index:6;box-shadow:0 4px 16px #0007}
 #veil .vt{font-size:18px;font-weight:800;color:var(--t3);white-space:nowrap}#veil .vs{font-size:12px;color:var(--tx)}
@@ -231,11 +235,15 @@ const CASES=[
  {cat:'外傷',c:'被人用刀刺傷腹部',v:'BP 90/60 HR 120',dx:'腹部穿刺傷',t:2,need:['FAST超音波','輸血','外科會診'],dis:'admit',w:1,night:1,res:{FAST超音波:'腹腔積液 ⚠',外科會診:'進刀房探查'}},
 ];
 const C=dx=>CASES.find(c=>c.dx===dx);
-// [稱呼, 最小年齡, 最大年齡]：稱呼與年齡要對得上，小朋友／老人病例會配對年齡相符的人
-const PEOPLE=[['王先生',25,70],['陳小姐',20,55],['林阿嬤',70,90],['張大哥',30,60],['李同學',12,22],['黃伯伯',60,80],['吳太太',35,65],['劉小弟',6,14],['蔡小姐',20,50],['楊先生',25,70],['許阿公',70,90],['鄭小姐',20,55],['謝先生',25,70],['洪媽媽',35,60],['郭先生',25,70]];
+// 姓氏 × 稱謂 組合，稱謂決定年齡範圍；同時在場的病人不會重名
+const SURN=['王','陳','林','張','李','黃','吳','劉','蔡','楊','許','鄭','謝','洪','郭','曾','賴','周','徐','蘇','葉','莊','呂','江','何','蕭','羅','高','潘','簡','朱','鍾','彭','游','詹','胡','施','沈','余','盧'];
+const TITLES=[['先生',25,70],['小姐',20,55],['阿嬤',70,90],['阿公',70,90],['伯伯',60,80],['太太',35,65],['大哥',30,60],['同學',12,22],['小弟',6,14],['小妹',6,14],['媽媽',35,60],['阿姨',40,65]];
 function person(cs){const kid=/小朋友/.test(cs.c),old=/老人|慢性肺病/.test(cs.c);
- const pool=PEOPLE.filter(x=>kid?x[1]<=14:old?x[1]>=60:x[1]>=12);const x=pool[Math.random()*pool.length|0];
- return {name:x[0],age:x[1]+(Math.random()*(x[2]-x[1]+1)|0)};}
+ const pool=TITLES.filter(x=>kid?x[1]<=14:old?x[1]>=60:x[1]>=12);
+ const used=new Set([...(S.pts||[]).map(q=>q.name),...(S.ghosts||[]).map(g=>g.name)]);
+ let x,name,n=0;do{x=pool[Math.random()*pool.length|0];name=SURN[Math.random()*SURN.length|0]+x[0];}while(used.has(name)&&++n<80);
+ const hi=kid?Math.min(x[2],14):x[2];
+ return {name,age:x[1]+(Math.random()*(hi-x[1]+1)|0)};}
 const TRI=['','復甦急救','危急','緊急','次緊急','非緊急'];
 const SEV=['輕度','中度','重度'], SEVM=[.5,1,1.8];
 const COMMON=['穩定生命徵象','ECG','抽血','CT','X光','輸液','止痛','抗生素','觀察30分']; // 預設顯示的常用處置,其餘在「更多處置」
@@ -269,7 +277,7 @@ function popup(icon,title,msg,cls='r'){
 function startBuffer(sp){S.speed=0;S.hold={kind:'buf',left:3,speed:sp||1};clearInterval(S.holdT);
  S.holdT=setInterval(()=>{if(!S.hold||S.hold.kind!=='buf'||S.ended){clearInterval(S.holdT);return}
   if(!document.hidden&&--S.hold.left<=0){const v=S.hold.speed;S.hold=null;S.speed=v;clearInterval(S.holdT);}render();},1000);}
-function popupOk(){S.pop.shift();if(!S.pop.length)startBuffer(S.prevSpeed||1);}
+function popupOk(){S.pop.shift();if(!S.pop.length){const f=S.focusId&&byId(S.focusId);if(f)S.sel=f.id;S.focusId=null;startBuffer(S.prevSpeed||1);}}
 function log(msg,cls=''){S.log.unshift({t:S.t,msg,cls});if(S.log.length>60)S.log.pop();}
 
 function pick(night){
@@ -284,7 +292,7 @@ function spawn(cs,silent,noAmb){
   hp:100,stab:false,done:[],pend:[],res:{},loc:null,wait:0,sat:100,arr:S.t,goldDone:false,amb:!!cs.six&&!noAmb};
  S.pts.push(p);if(cs.six)S.sixSeen++;S.recent=[...(S.recent||[]),cs].slice(-5);
  if(p.amb){const i=S.beds.indexOf(null);if(i>=0){S.beds[i]=p.id;p.loc=i;}}
- if(!silent&&p.amb&&p.loc!=null){p.fresh=true;S.sel=p.id;}
+ if(!silent&&p.amb){S.focusId=p.id;S.sel=p.id;if(p.loc!=null)p.fresh=true;}
  if(!silent)log(`${p.amb?'🚑 救護車送來':'🚪 新病人'} ${p.name}：${cs.c}（${cs.cat}・檢傷 ${shown} 級${cs.six&&S.lv.hint>=1?'・六大急症':''}）`,cs.t<=2?'y':'');
  if(!silent&&cs.six){if(S.lv.hint>=1)popup('🚑','六大急症送達！',`${p.name}：${cs.c}\n診斷方向：${cs.dx}${cs.gold?`\n黃金時間：${cs.gold.m} 分鐘內完成「${cs.gold.a}」（下單即算達標）`:''}`,'y');
   else popup('🚑','救護車送達！',`${p.name}：${cs.c}\n狀況危急，請自行判斷、盡快處理。`,'y');}
@@ -383,7 +391,7 @@ function queued(p,a){return S.queue.some(x=>x.pid===p.id&&x.a===a);}
 function prereq(p,a){const A=ACT[a],need=p.cs.need,req=A.c?need.filter(n=>!ACT[n].c):A.req;return !req||req.every(n=>p.done.includes(n));}
 function launch(p,a){if(a==='腎上腺素')return openQuiz(p.id,a);startAct(p,a);}
 function doAct(a,front){
- const p=byId(S.sel);if(!p||p.loc==null)return;
+ const p=byId(S.sel);if(!p)return;if(p.loc==null)return toast('這位病人還在候診區，請先送進診間（Enter）');
  if(a==='穩定生命徵象'?p.stab:has(p,a))return toast('已經開過了');
  if(S.task&&S.task.pid===p.id&&S.task.a===a)return toast('已經在做了');
  if(queued(p,a))return toast('已在佇列中');
@@ -448,7 +456,7 @@ function figure(p,sz){
  const lying=/心跳停止|無呼吸|意識不清|意識混亂|抽搐|昏倒|倒在路邊|喝醉|GCS 1[0-4]/.test(s)||hp<=20;
  const mood=hp<=15?'out':hp<35?'faint':hp<60?'pain':(p.loc==null&&p.sat<45)?'angry':cs.t<=3?'worried':'calm';
  const skin=hp<35?'#d8d2c4':hp<60?'#f1cfb0':'#f6d2b0', hair=p.age>=60?'#c8c8c8':'#3b2f2f';
- const longHair=/小姐|阿嬤|太太|媽媽/.test(p.name), cloth=cs.cat==='外傷'?'#7fa8c9':'#8fbf9f';
+ const longHair=/小姐|阿嬤|太太|媽媽|小妹|阿姨/.test(p.name), cloth=cs.cat==='外傷'?'#7fa8c9':'#8fbf9f';
  const arm=(pts)=>`<polyline points="${pts}" fill="none" stroke="${skin}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>`;
  let L='38,58 31,80 30,96', R='62,58 69,80 70,96', extra='', mouth='';
  const breath=/喘|呼吸困難|呼吸衰竭|氣胸|喉嚨緊/.test(s);
@@ -561,12 +569,15 @@ function render(){
    ${sel.cs.gold&&!sel.goldDone&&S.lv.hint>=1?`<p class="res" style="margin:4px 0">⏱ 黃金時間：${sel.cs.gold.m} 分鐘內完成「${sel.cs.gold.a}」，下單即算達標（已過 ${S.t-sel.arr} 分）</p>`:''}${hintHtml(sel)}</div><div class="body">`;
   if(sel.loc!=null){
    h+=`<div class="res" style="margin:6px 0">${Object.entries(sel.res).map(([k,v])=>`<div><b>${k}</b>：<span class="${v.includes('⚠')?'warn':''}">${v}</span></div>`).join('')||'尚無檢查結果'}</div>`;
-   const shownList=l=>S.more?l:l.filter(k=>COMMON.includes(k)||has(sel,k)||(k==='穩定生命徵象'&&sel.stab));
-   const btn=k=>{const A=ACT[k];return `<button data-do="act" data-a="${k}" ${(k==='穩定生命徵象'?sel.stab:has(sel,k))?'disabled':''} ${dis}>${A.i} ${k} <span class="key">[${HOT[k]}]</span><br><small class="res">${A.d}分${A.w?'＋等'+A.w:''}${sel.cs.gold&&sel.cs.gold.a===k&&!sel.goldDone&&S.lv.hint>=1?'<br>⏱ 下單即算達標':''}</small></button>`};
-   const pin=pinFor(sel);
-   if(pin.length)h+=`<div class="gl">⭐ 依主訴，最相關的處置</div><div class="grid3">${pin.map(btn).join('')}</div>`;
-   h+=GROUPS.map(([g,all])=>[g,shownList(all).filter(k=>!pin.includes(k))]).filter(([g,list])=>list.length).map(([g,list])=>`<div class="gl">${g}</div><div class="grid3">${list.map(btn).join('')}</div>`).join('');
-   h+=`<button data-do="more" style="width:100%;margin-top:6px">${S.more?'▲ 只看常用處置':'▼ 更多處置（急救、特殊藥物、會診…）'}</button>`;
+   const hiKey=leadOf(sel),pin=pinFor(sel);
+   const btn=k=>{const A=ACT[k],cl=[S.task?'dim':'',k===hiKey?'hi':''].filter(Boolean).join(' ');
+    return `<button data-do="act" data-a="${k}" ${(k==='穩定生命徵象'?sel.stab:has(sel,k))?'disabled':''} ${cl?`class="${cl}"`:''}>${k===hiKey?'⭐ ':''}${A.i} ${k} <span class="key">[${HOT[k]}]</span><br><small class="res">${A.d}分${A.w?'＋等'+A.w:''}${sel.cs.gold&&sel.cs.gold.a===k&&!sel.goldDone&&S.lv.hint>=1?'<br>⏱ 下單即算達標':''}</small></button>`};
+   const TABS=[['rec','⭐ 建議'],['test','檢查'],['tx','治療'],['er','急救'],['con','會診／觀察']],tab=S.tab||'rec';
+   const tabList={test:GROUPS[1][1],tx:GROUPS[2][1],er:GROUPS[0][1],con:GROUPS[3][1]};
+   h+=`<div class="tabs">${TABS.map(([id,t])=>`<button class="tabbtn ${tab===id?'on':''}" data-do="tab" data-a="${id}">${t}</button>`).join('')}</div>`;
+   if(tab==='rec'){h+=`<div class="gl">依主訴，最相關的處置</div><div class="grid3">${pin.map(btn).join('')}</div>`;
+    const rest=COMMON.filter(k=>!pin.includes(k));if(rest.length)h+=`<div class="gl">其他常用</div><div class="grid3">${rest.map(btn).join('')}</div>`;}
+   else h+=`<div class="grid3">${tabList[tab].map(btn).join('')}</div>`;
   }
   h+=`</div><div class="foot">${Date.now()<toastT?`<p class="warn" style="margin:0 0 6px">${toastMsg}</p>`:''}`;
   if(sel.loc==null)h+=`<button data-do="bed" style="width:100%">🛏️ 送進診間（${S.beds.filter(x=>!x).length} 床空）[Enter]</button>`;
@@ -574,8 +585,8 @@ function render(){
   h+='</div>';
  }
  h+='</div></div>';
- if(S.quiz&&!S.ended&&!(S.pop&&S.pop.length)){h+=`<div class="overlay"><div class="box" style="max-width:440px;border:2px solid var(--ac)"><div style="font-size:40px;text-align:center">💉</div><h1 style="font-size:20px;text-align:center">${S.quiz.q}</h1><p class="res" style="text-align:center">選對加 3 分；選錯會傷害病人。（按 1–4 作答）</p>${S.quiz.opts.map((o,i)=>`<button class="qbtn" data-do="quiz" data-a="${i}"><b>${i+1}.</b> ${o[0]}</button>`).join('')}</div></div>`;}
- if(S.pop&&S.pop.length&&!S.ended){const e=S.pop[0];h+=`<div class="overlay"><div class="box" style="max-width:420px;text-align:center;border:2px solid ${e.cls==='r'?'var(--bad)':'var(--t3)'}"><div style="font-size:48px">${e.icon}</div><h1 style="font-size:22px">${e.title}</h1><p style="white-space:pre-line;font-size:15px">${e.msg}</p>${S.pop.length>1?`<p class="res">還有 ${S.pop.length-1} 則通知</p>`:''}<button data-do="popok" style="width:100%;padding:12px">知道了，繼續</button></div></div>`;}
+ if(S.quiz&&!S.ended&&!(S.pop&&S.pop.length)){h+=`<div class="overlay"><div class="box ${Date.now()<(S.nag||0)?'nag':''}" style="max-width:440px;border:2px solid var(--ac)"><div style="font-size:40px;text-align:center">💉</div><h1 style="font-size:20px;text-align:center">${S.quiz.q}</h1><p class="res" style="text-align:center">選對加 3 分；選錯會傷害病人。（按 1–4 作答）</p>${Date.now()<(S.nag||0)?'<p class="warn nagtxt">請先回答這題，再下醫囑</p>':''}${S.quiz.opts.map((o,i)=>`<button class="qbtn" data-do="quiz" data-a="${i}"><b>${i+1}.</b> ${o[0]}</button>`).join('')}</div></div>`;}
+ if(S.pop&&S.pop.length&&!S.ended){const e=S.pop[0];h+=`<div class="overlay"><div class="box ${Date.now()<(S.nag||0)?'nag':''}" style="max-width:420px;text-align:center;border:2px solid ${e.cls==='r'?'var(--bad)':'var(--t3)'}"><div style="font-size:48px">${e.icon}</div><h1 style="font-size:22px">${e.title}</h1><p style="white-space:pre-line;font-size:15px">${e.msg}</p>${S.pop.length>1?`<p class="res">還有 ${S.pop.length-1} 則通知</p>`:''}${Date.now()<(S.nag||0)?'<p class="warn nagtxt">請先按「知道了」或空白鍵關閉通知，再下醫囑</p>':''}<button data-do="popok" style="width:100%;padding:12px">知道了，繼續（空白鍵）</button></div></div>`;}
   morph($app,h);const tp=document.getElementById('top');if(tp)document.documentElement.style.setProperty('--toph',tp.offsetHeight+'px');
 }
 // 只更新有變動的節點，不整塊重畫：按鈕不會被重建，點擊與 hover 不會落空
@@ -599,15 +610,20 @@ function patch(a,b){const ac=a.childNodes,bc=b.childNodes;
 const $app=document.getElementById('app');
 document.addEventListener('pointerdown',e=>{
  const b=e.target.closest('[data-do]');if(!b||b.disabled)return;const a=b.dataset.a;
- ({sel:()=>S.sel=+a,bed:toBed,act:()=>doAct(a),dispo:()=>doDispo(a),rest:()=>doRest(a),reassess:doReassess,more:()=>S.more=!S.more,popok:popupOk,gotoidle:()=>gotoIdle(),qdel:()=>{S.queue.splice(+a,1)},quiz:()=>quizAnswer(+a),resume:()=>{S.autoPaused=false;const sp=S.hold&&S.hold.speed;S.hold=null;S.speed=sp||S.resume||1},speed:()=>{if(S.speed)S.resume=S.speed;S.autoPaused=false;S.hold=null;S.speed=+a},start:()=>start(+a),again:()=>{newGame();intro()}})[b.dataset.do]?.();
+ ({sel:()=>S.sel=+a,bed:toBed,act:()=>doAct(a),dispo:()=>doDispo(a),rest:()=>doRest(a),reassess:doReassess,more:()=>S.more=!S.more,tab:()=>{S.tab=a},popok:popupOk,gotoidle:()=>gotoIdle(),qdel:()=>{S.queue.splice(+a,1)},quiz:()=>quizAnswer(+a),resume:()=>{S.autoPaused=false;const sp=S.hold&&S.hold.speed;S.hold=null;S.speed=sp||S.resume||1},speed:()=>{if(S.speed)S.resume=S.speed;S.autoPaused=false;S.hold=null;S.speed=+a},start:()=>start(+a),again:()=>{newGame();intro()}})[b.dataset.do]?.();
  render();
 });
 document.addEventListener('contextmenu',e=>{const b=e.target.closest('[data-do=act]');if(!b||!S.started)return;e.preventDefault();if(b.disabled)return;doAct(b.dataset.a,true);render();});
+// 中文輸入法開啟時 e.key 會變成 "Process"，改用實體按鍵代碼 e.code 判斷
+function keyOf(e){const c=e.code||'';let m;if(c==='Space')return ' ';if(c==='Enter'||c==='NumpadEnter')return 'Enter';
+ if((m=c.match(/^(?:Digit|Numpad)(\d)$/)))return m[1];if((m=c.match(/^Key([A-Z])$/)))return m[1].toLowerCase();return e.key;}
+function nag(){S.nag=Date.now()+1400;setTimeout(render,1500);}
 document.addEventListener('keydown',e=>{
  if(!S.started||S.ended||e.ctrlKey||e.metaKey||e.altKey)return;
- const k=e.key;
- if(S.quiz&&!(S.pop&&S.pop.length)){if(/^[1-4]$/.test(k)){quizAnswer(+k-1);render();}return;}
- if(S.pop&&S.pop.length){if(k===' '||k==='Enter'){e.preventDefault();popupOk();render();}return;}
+ if(e.target&&/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))return;
+ const k=keyOf(e);
+ if(S.quiz&&!(S.pop&&S.pop.length)){if(/^[1-4]$/.test(k)){quizAnswer(+k-1);render();}else if(k!=='Shift'){nag();render();}return;}
+ if(S.pop&&S.pop.length){if(k===' '||k==='Enter'){e.preventDefault();popupOk();render();}else if(k!=='Shift'){nag();render();}return;}
  if(k===' '){e.preventDefault();if(S.speed){S.resume=S.speed;S.speed=0}else{S.autoPaused=false;const sp=S.hold&&S.hold.speed;S.hold=null;S.speed=sp||S.resume||1}}
  else if(e.shiftKey&&/^Digit[124]$/.test(e.code)){S.autoPaused=false;S.speed=+e.code.slice(5);}
  else if(/^[1-8]$/.test(k)){const id=S.beds[+k-1];if(id)S.sel=id;}
@@ -651,6 +667,7 @@ function sceneHtml(){
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function savedName(){try{return localStorage.getItem('er24hr_name')||''}catch(e){return ''}}
 const nm=()=>S.player?esc(S.player)+' 醫師':'醫師';
+const VERSION='2026-11-05 r10';
 function intro(){S.started=false;
  const stars=n=>'●'.repeat(n)+'○'.repeat(6-n);
  $app.innerHTML=`<div class="overlay intro">${sceneHtml()}<div class="ibox">
@@ -667,7 +684,7 @@ function intro(){S.started=false;
  <p><b>快捷鍵：</b>1-8 選床位、Enter 送進診間、空白鍵暫停／繼續、Shift+1/2/4 切速度、字母下醫囑（按鈕上有標示）。<br><b>醫囑佇列：</b>醫師忙碌時再下醫囑會自動排隊（最多 3 筆），做完自動接下一筆；Shift+字母或對按鈕按右鍵可插隊；前置條件不符的會被取消。</p></details>
  <div class="iname"><label for="pname">👨‍⚕️ 你的名字</label><input id="pname" maxlength="8" autocomplete="off" placeholder="想被叫什麼？（可不填）" value="${esc(savedName())}"><small>會顯示在遊戲畫面與結局</small></div>
  <div class="ihead">選擇你的職級（難度）</div>
- <div class="ilv">${LEVELS.map((l,i)=>`<button data-do="start" data-a="${i}" class="lvbtn lv${i}"><div class="lvn"><b>${l.n}</b><span class="lvd">${stars(i+1)}</span></div><div class="lvt">${l.desc}</div></button>`).join('')}</div></div></div></div>`;}
+ <div class="ilv">${LEVELS.map((l,i)=>`<button data-do="start" data-a="${i}" class="lvbtn lv${i}"><div class="lvn"><b>${l.n}</b><span class="lvd">${stars(i+1)}</span></div><div class="lvt">${l.desc}</div></button>`).join('')}</div><div class="ver">版本 ${VERSION}（若畫面和說明不符，請按 Ctrl+F5 重新整理）</div></div></div></div>`;}
 function start(i){const lv=LEVELS[i];S.lv=lv;
  S.player=((document.getElementById('pname')||{}).value||'').trim().slice(0,8);
  try{localStorage.setItem('er24hr_name',S.player)}catch(e){}S.mcis=lv.mcis.map(t=>t+(Math.random()*100-50|0));
@@ -679,7 +696,8 @@ function start(i){const lv=LEVELS[i];S.lv=lv;
   spawn(c,1,1);}
  log(`📋 候診區已經有 ${lv.init} 位病人在等你了。`,'y');}
 // 依主訴置頂最相關的處置（症狀導向的第一線處置，不等於答案，仍可能含不需要的項目）
-const PINS=[[/胸痛|冠心症|心悸|冷汗/,['ECG','抽血','阿斯匹靈','心臟科會診','輸液']],
+const PINS=[[/起疹|過敏|喘鳴/,['腎上腺素','輸液','噴霧治療','觀察30分'],1],
+ [/胸痛|冠心症|心悸|冷汗/,['ECG','抽血','阿斯匹靈','心臟科會診','輸液']],
  [/喘|呼吸|氣胸|喉嚨緊/,['X光','噴霧治療','抽血','腎上腺素','插管']],
  [/無力|口齒|抽搐|頭痛|頭暈|意識|撞到頭/,['CT','抽血','神經科會診','ECG','觀察30分']],
  [/發燒|咳嗽|敗血/,['抽血','抗生素','X光','輸液','尿液檢查']],
@@ -687,10 +705,13 @@ const PINS=[[/胸痛|冠心症|心悸|冷汗/,['ECG','抽血','阿斯匹靈','�
  [/刺傷|車禍|高速|流血|割傷|咬傷/,['FAST超音波','止血加壓','縫合','輸血','外科會診']],
  [/骨折|扭傷|跌倒|髖|變形|撞擊/,['X光','止痛','夾板固定','外科會診','CT']],
  [/燙傷/,['止痛','輸液','抗生素']]];
-function pinFor(p){const s=p.cs.c+p.cs.v,g=p.cs.gold&&S.lv.hint>=1?[p.cs.gold.a]:[];
- const base=(PINS.find(([r])=>r.test(s))||[0,['抽血','X光','輸液','止痛','觀察30分']])[1];
+const ruleOf=p=>PINS.find(([r])=>r.test(p.cs.c+p.cs.v));
+const leadOf=p=>{const r=ruleOf(p);return r&&r[2]?r[1][0]:null;}; // 特效藥優先（例如過敏性休克 → 腎上腺素）
+function pinFor(p){const g=p.cs.gold&&S.lv.hint>=1?[p.cs.gold.a]:[];
+ const r=ruleOf(p),base=r?r[1]:['抽血','X光','輸液','止痛','觀察30分'];
  const first=((p.cs.six&&S.lv.hint>=1)||p.shown<=2)?['穩定生命徵象']:[];
- return [...first,...g,...base].filter((k,i,a)=>ACT[k]&&a.indexOf(k)===i).slice(0,6);}
+ const lead=leadOf(p)?[base[0]]:[];
+ return [...lead,...first,...g,...base].filter((k,i,a)=>ACT[k]&&a.indexOf(k)===i).slice(0,6);}
 function hintHtml(p){const h=S.lv.hint;if(!h)return '';
  return `<p class="res" style="margin:6px 0">💡 可能診斷：${p.cs.dx}${h>=2?`<br>建議處置：${p.cs.need.join('、')||'無需特別處置'}（${p.cs.dis==='admit'?'收住院':'回家'}）`:''}</p>`;}
 function reviewHtml(){const rows=[...S.review];
